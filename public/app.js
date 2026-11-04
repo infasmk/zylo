@@ -286,6 +286,46 @@ function showToast(message) {
   }, 2600);
 }
 
+// Full Song Title Marquee Detection & Smooth Scrolling
+function applyMarqueeIfNeeded(element, container) {
+  if (!element) return;
+  const parent = container || element.parentElement;
+  if (!parent) return;
+
+  element.classList.remove('marquee-scroll');
+  element.style.removeProperty('--marquee-offset');
+
+  const textWidth = element.scrollWidth;
+  const containerWidth = parent.clientWidth;
+
+  if (textWidth > containerWidth + 4) {
+    const diff = textWidth - containerWidth + 16;
+    element.style.setProperty('--marquee-offset', `-${diff}px`);
+    element.classList.add('marquee-scroll');
+  }
+}
+
+// Equalizer and Active Song Synchronization across all tiles
+function updateActiveTileState() {
+  const currentId = state.currentTrack?.id;
+  const isPlaying = state.isPlaying;
+
+  document.querySelectorAll('.track-tile').forEach(tile => {
+    const isCurrent = tile.dataset.id === currentId;
+    tile.classList.toggle('active', isCurrent);
+    tile.classList.toggle('is-playing', isCurrent && isPlaying);
+
+    const titleEl = tile.querySelector('.track-title');
+    if (titleEl) {
+      if (isCurrent) {
+        applyMarqueeIfNeeded(titleEl);
+      } else {
+        titleEl.classList.remove('marquee-scroll');
+      }
+    }
+  });
+}
+
 function saveLibrary() {
   localStorage.setItem('zylo_liked', JSON.stringify(state.likedSongs));
   localStorage.setItem('zylo_history', JSON.stringify(state.history));
@@ -942,11 +982,13 @@ function updateMediaSessionPosition() {
 elements.audio.addEventListener('play', () => {
   state.isPlaying = true;
   updatePlayPauseIcons();
+  updateActiveTileState();
 });
 
 elements.audio.addEventListener('pause', () => {
   state.isPlaying = false;
   updatePlayPauseIcons();
+  updateActiveTileState();
 });
 
 elements.audio.addEventListener('timeupdate', () => {
@@ -1029,6 +1071,8 @@ function updatePlayPauseIcons() {
   // Full player
   elements.playerPlayBtn.querySelector('.play-icon').classList.toggle('hidden', isPlaying);
   elements.playerPlayBtn.querySelector('.pause-icon').classList.toggle('hidden', !isPlaying);
+
+  updateActiveTileState();
 }
 
 function updatePlayerUI() {
@@ -1042,11 +1086,14 @@ function updatePlayerUI() {
   elements.miniCover.src = track.image || '/assets/zylo_logo.png';
   elements.miniTitle.textContent = track.title;
   elements.miniArtist.textContent = track.artist;
+  applyMarqueeIfNeeded(elements.miniTitle);
 
   // Full Player
   elements.playerCover.src = track.image || '/assets/zylo_logo.png';
   elements.playerTitle.textContent = track.title;
   elements.playerArtist.textContent = track.artist;
+  applyMarqueeIfNeeded(elements.playerTitle);
+
   elements.playerQualityBadge.textContent = `${state.audioQuality} KBPS`;
 
   // Dynamic Ambient Artwork Blur in Full Player
@@ -1062,9 +1109,7 @@ function updatePlayerUI() {
     });
   }
 
-  document.querySelectorAll('.track-tile').forEach(tile => {
-    tile.classList.toggle('active', tile.dataset.id === track.id);
-  });
+  updateActiveTileState();
 }
 
 function updateQueueUI() {
@@ -1073,15 +1118,17 @@ function updateQueueUI() {
 
   state.queue.forEach((track, idx) => {
     const isCurrent = idx === state.queueIndex;
+    const isPlaying = isCurrent && state.isPlaying;
     const item = document.createElement('div');
-    item.className = `track-tile ${isCurrent ? 'active' : ''}`;
+    item.className = `track-tile ${isCurrent ? 'active' : ''} ${isPlaying ? 'is-playing' : ''}`;
+    item.dataset.id = track.id;
     item.innerHTML = `
       <div class="track-thumb-wrap">
-        <img class="track-thumb" src="${track.image}" alt="">
-        ${isCurrent ? '<div class="track-playing-eq"><span></span><span></span><span></span></div>' : ''}
+        <img class="track-thumb" src="${track.image || '/assets/zylo_logo.png'}" alt="">
+        <div class="track-playing-eq"><span></span><span></span><span></span></div>
       </div>
       <div class="track-info">
-        <div class="track-title">${track.title}</div>
+        <div class="track-title-wrap"><span class="track-title">${track.title}</span></div>
         <div class="track-meta">${track.artist}</div>
       </div>
       <div class="track-duration">${formatSeconds(track.duration)}</div>
@@ -1100,6 +1147,8 @@ function updateQueueUI() {
 
     elements.queueItemsList.appendChild(item);
   });
+
+  updateActiveTileState();
 }
 
 function removeFromQueue(index) {
@@ -1325,38 +1374,57 @@ elements.playerLikeBtn.addEventListener('click', () => {
 // ---------------------------------------------------------------------------
 // UI Component Builders (Track Tiles, Rows, Cards)
 // ---------------------------------------------------------------------------
-function createTrackTile(track, onPlay) {
-  const tile = document.createElement('div');
-  tile.className = `track-tile ${state.currentTrack?.id === track.id ? 'active' : ''}`;
-  tile.dataset.id = track.id;
-
+function createTrackTile(track, onPlay, options = {}) {
+  const isCurrent = state.currentTrack?.id === track.id;
+  const isPlaying = isCurrent && state.isPlaying;
   const isLiked = isTrackLiked(track.id);
+  const isSearch = !!options.isSearch;
+
+  const tile = document.createElement('div');
+  tile.className = `track-tile ${isCurrent ? 'active' : ''} ${isPlaying ? 'is-playing' : ''}`;
+  tile.dataset.id = track.id;
 
   tile.innerHTML = `
     <div class="track-thumb-wrap">
       <img class="track-thumb" src="${track.image || '/assets/zylo_logo.png'}" alt="" loading="lazy">
-      ${state.currentTrack?.id === track.id && state.isPlaying ? '<div class="track-playing-eq"><span></span><span></span><span></span></div>' : ''}
+      <div class="track-playing-eq"><span></span><span></span><span></span></div>
     </div>
     <div class="track-info">
-      <div class="track-title">${track.title}</div>
+      <div class="track-title-wrap"><span class="track-title">${track.title}</span></div>
       <div class="track-meta">${track.artist}</div>
     </div>
     <div class="track-duration">${formatSeconds(track.duration)}</div>
     <div class="track-actions">
+      ${!isSearch ? `
       <button class="track-btn track-download-btn" data-track-id="${track.id}" title="Download for offline" aria-label="Download for offline">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-      </button>
+      </button>` : ''}
       <button class="track-btn track-like-btn ${isLiked ? 'liked' : ''}" title="Favorite" aria-label="Favorite">
         <svg viewBox="0 0 24 24" fill="${isLiked ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"></path></svg>
       </button>
+      ${!isSearch ? `
       <button class="track-btn track-add-btn" title="Add to Playlist" aria-label="Add to Playlist">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-      </button>
+      </button>` : ''}
     </div>
   `;
 
-  isTrackDownloaded(track.id).then(isDl => {
-    if (isDl) tile.querySelector('.track-download-btn')?.classList.add('downloaded');
+  if (!isSearch) {
+    isTrackDownloaded(track.id).then(isDl => {
+      if (isDl) tile.querySelector('.track-download-btn')?.classList.add('downloaded');
+    });
+  }
+
+  // Hover to trigger marquee if text overflows
+  tile.addEventListener('mouseenter', () => {
+    const titleEl = tile.querySelector('.track-title');
+    applyMarqueeIfNeeded(titleEl);
+  });
+  tile.addEventListener('mouseleave', () => {
+    if (tile.dataset.id !== state.currentTrack?.id) {
+      const titleEl = tile.querySelector('.track-title');
+      if (titleEl) titleEl.classList.remove('marquee-scroll');
+    }
   });
 
   tile.addEventListener('click', async (e) => {
@@ -1559,10 +1627,11 @@ async function loadDetailsView(type, id) {
   currentDetailsId = id;
 
   if (type === 'downloads') {
-    elements.detailsCover.src = '/assets/zylo_logo.png';
+    const downloads = await getAllDownloads();
+    const firstDlImg = downloads?.find(t => t.image && !t.image.includes('zylo_logo'))?.image || downloads?.[0]?.image;
+    elements.detailsCover.src = firstDlImg || '/assets/zylo_logo.png';
     elements.detailsType.textContent = 'Offline';
     elements.detailsTitle.textContent = 'Downloaded Music';
-    const downloads = await getAllDownloads();
     elements.detailsSubtitle.textContent = `${downloads.length} songs • Offline Listening`;
     elements.detailsExtra.textContent = 'Available without internet';
     currentDetailsTracks = downloads;
@@ -1574,7 +1643,8 @@ async function loadDetailsView(type, id) {
   }
 
   if (type === 'liked') {
-    elements.detailsCover.src = '/assets/zylo_logo.png';
+    const firstLikedImg = state.likedSongs?.find(t => t.image && !t.image.includes('zylo_logo'))?.image || state.likedSongs?.[0]?.image;
+    elements.detailsCover.src = firstLikedImg || '/assets/zylo_logo.png';
     elements.detailsType.textContent = 'Favorites';
     elements.detailsTitle.textContent = 'Liked Songs';
     elements.detailsSubtitle.textContent = `${state.likedSongs.length} songs • Personal Collection`;
@@ -1588,7 +1658,8 @@ async function loadDetailsView(type, id) {
   }
 
   if (type === 'history') {
-    elements.detailsCover.src = '/assets/zylo_logo.png';
+    const firstHistoryImg = state.history?.find(t => t.image && !t.image.includes('zylo_logo'))?.image || state.history?.[0]?.image;
+    elements.detailsCover.src = firstHistoryImg || '/assets/zylo_logo.png';
     elements.detailsType.textContent = 'History';
     elements.detailsTitle.textContent = 'Recently Played';
     elements.detailsSubtitle.textContent = `${state.history.length} songs`;
@@ -1604,7 +1675,9 @@ async function loadDetailsView(type, id) {
   if (type === 'user_playlist' || type === 'imported') {
     const pl = state.playlists.find(p => p.id === id);
     if (!pl) return;
-    elements.detailsCover.src = pl.image || '/assets/zylo_logo.png';
+    const firstSongImg = pl.tracks?.find(t => t.image && !t.image.includes('zylo_logo'))?.image || pl.tracks?.[0]?.image;
+    const coverImg = firstSongImg || (pl.image && !pl.image.includes('zylo_logo') ? pl.image : '/assets/zylo_logo.png');
+    elements.detailsCover.src = coverImg;
     elements.detailsType.textContent = pl.type === 'imported' ? 'Imported Playlist' : 'Playlist';
     elements.detailsTitle.textContent = pl.name;
     elements.detailsSubtitle.textContent = `${pl.tracks.length} tracks`;
@@ -1692,8 +1765,9 @@ async function downloadPlaylist(tracks, playlistName) {
   }
 
   isDownloadingBatch = true;
-  if (elements.detailsDownloadPlaylistText) {
-    elements.detailsDownloadPlaylistText.textContent = `Downloading (0/${tracks.length})...`;
+  if (elements.detailsDownloadPlaylistBtn) {
+    elements.detailsDownloadPlaylistBtn.classList.add('downloading');
+    elements.detailsDownloadPlaylistBtn.title = `Downloading (0/${tracks.length})...`;
   }
   showToast(`Downloading ${tracks.length} songs for offline listening...`);
 
@@ -1702,8 +1776,8 @@ async function downloadPlaylist(tracks, playlistName) {
 
   for (let i = 0; i < tracks.length; i++) {
     const track = tracks[i];
-    if (elements.detailsDownloadPlaylistText) {
-      elements.detailsDownloadPlaylistText.textContent = `Downloading (${i + 1}/${tracks.length})...`;
+    if (elements.detailsDownloadPlaylistBtn) {
+      elements.detailsDownloadPlaylistBtn.title = `Downloading (${i + 1}/${tracks.length})...`;
     }
 
     try {
@@ -1779,8 +1853,9 @@ async function downloadPlaylist(tracks, playlistName) {
   }
 
   isDownloadingBatch = false;
-  if (elements.detailsDownloadPlaylistText) {
-    elements.detailsDownloadPlaylistText.textContent = 'Download Playlist';
+  if (elements.detailsDownloadPlaylistBtn) {
+    elements.detailsDownloadPlaylistBtn.classList.remove('downloading');
+    elements.detailsDownloadPlaylistBtn.title = 'Downloaded for Offline';
   }
   showToast(`Downloaded ${count} songs offline${skipped > 0 ? ` (${skipped} skipped)` : ''}!`);
   updateDownloadBadges();
@@ -1820,23 +1895,49 @@ function renderEditPlaylistTracks() {
 
   elements.editPlaylistTracksList.innerHTML = '';
   if (!editingTracks.length) {
-    elements.editPlaylistTracksList.innerHTML = '<div style="color:var(--text-secondary);font-size:0.85rem;padding:12px;text-align:center;">No tracks in playlist</div>';
+    elements.editPlaylistTracksList.innerHTML = '<div style="color:var(--text-secondary);font-size:0.85rem;padding:16px;text-align:center;">No tracks in playlist</div>';
     return;
   }
 
   editingTracks.forEach((track, idx) => {
     const row = document.createElement('div');
     row.className = 'edit-track-row';
+    row.dataset.index = idx;
     row.innerHTML = `
-      <img src="${track.image || '/assets/zylo_logo.png'}" alt="" class="edit-track-thumb">
-      <div class="edit-track-info">
-        <div class="edit-track-title">${track.title}</div>
-        <div class="edit-track-artist">${track.artist}</div>
+      <div class="edit-track-left">
+        <span class="edit-track-num">${idx + 1}</span>
+        <img src="${track.image || '/assets/zylo_logo.png'}" alt="" class="edit-track-thumb">
+        <div class="edit-track-text">
+          <div class="edit-track-title">${track.title}</div>
+          <div class="edit-track-artist">${track.artist}</div>
+        </div>
       </div>
-      <button class="remove-from-playlist-btn" data-index="${idx}" title="Remove track" aria-label="Remove">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-      </button>
+      <div class="edit-track-actions">
+        <button class="reorder-btn move-up-btn" data-index="${idx}" ${idx === 0 ? 'disabled' : ''} title="Move Up">▲</button>
+        <button class="reorder-btn move-down-btn" data-index="${idx}" ${idx === editingTracks.length - 1 ? 'disabled' : ''} title="Move Down">▼</button>
+        <button class="remove-from-playlist-btn" data-index="${idx}" title="Remove track" aria-label="Remove">✕</button>
+      </div>
     `;
+
+    row.querySelector('.move-up-btn').addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (idx > 0) {
+        const temp = editingTracks[idx];
+        editingTracks[idx] = editingTracks[idx - 1];
+        editingTracks[idx - 1] = temp;
+        renderEditPlaylistTracks();
+      }
+    });
+
+    row.querySelector('.move-down-btn').addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (idx < editingTracks.length - 1) {
+        const temp = editingTracks[idx];
+        editingTracks[idx] = editingTracks[idx + 1];
+        editingTracks[idx + 1] = temp;
+        renderEditPlaylistTracks();
+      }
+    });
 
     row.querySelector('.remove-from-playlist-btn').addEventListener('click', (e) => {
       e.stopPropagation();
@@ -1873,13 +1974,12 @@ if (elements.savePlaylistEditsBtn) {
 
     editingPlaylist.name = newName;
     editingPlaylist.tracks = [...editingTracks];
-    if (editingTracks.length > 0 && (!editingPlaylist.image || editingPlaylist.image === '/assets/zylo_logo.png')) {
-      editingPlaylist.image = editingTracks[0].image || '/assets/zylo_logo.png';
-    }
+    const firstSongImg = editingTracks.find(t => t.image && !t.image.includes('zylo_logo'))?.image || editingTracks[0]?.image;
+    editingPlaylist.image = firstSongImg || '/assets/zylo_logo.png';
 
     saveLibrary();
     if (elements.editPlaylistModal) elements.editPlaylistModal.classList.add('hidden');
-    showToast(`Updated playlist "${newName}"`);
+    showToast(`Saved "${newName}" (${editingTracks.length} tracks)`);
     loadDetailsView(editingPlaylist.type === 'imported' ? 'imported' : 'user_playlist', editingPlaylist.id);
   });
 }
@@ -1990,7 +2090,8 @@ function renderSearchResults(data, query = '') {
     `;
     const list = block.querySelector('#search-songs-list');
     data.songs.forEach((track, idx) => {
-      list.appendChild(createTrackTile(track, () => playQueue(data.songs, idx, 'Search')));
+      // In search results: only like button is shown (hide download and add-to-playlist)
+      list.appendChild(createTrackTile(track, () => playQueue(data.songs, idx, 'Search'), { isSearch: true }));
     });
     elements.searchResultsLists.appendChild(block);
   }
@@ -2065,6 +2166,15 @@ function updateLibraryUI() {
   elements.historyCountText.textContent = `${state.history.length} songs • History`;
   updateDownloadBadges();
 
+  // In playlists / collections, use first song image as cover (Zylo logo only where no images)
+  const firstLikedImg = state.likedSongs?.find(t => t.image && !t.image.includes('zylo_logo'))?.image || state.likedSongs?.[0]?.image;
+  const likedImgEl = elements.libraryLikedItem?.querySelector('img');
+  if (likedImgEl) likedImgEl.src = firstLikedImg || '/assets/zylo_logo.png';
+
+  const firstHistoryImg = state.history?.find(t => t.image && !t.image.includes('zylo_logo'))?.image || state.history?.[0]?.image;
+  const historyImgEl = elements.libraryHistoryItem?.querySelector('img');
+  if (historyImgEl) historyImgEl.src = firstHistoryImg || '/assets/zylo_logo.png';
+
   const filter = state.libraryFilter;
   elements.userPlaylistsContainer.innerHTML = '';
 
@@ -2095,11 +2205,15 @@ function updateLibraryUI() {
   });
 
   playlistsToShow.forEach(pl => {
+    // Pick the first track's image as cover, or Zylo logo only if no images exist
+    const firstSongImg = pl.tracks?.find(t => t.image && !t.image.includes('zylo_logo'))?.image || pl.tracks?.[0]?.image;
+    const coverImg = firstSongImg || (pl.image && !pl.image.includes('zylo_logo') ? pl.image : '/assets/zylo_logo.png');
+
     const card = document.createElement('div');
     card.className = 'library-item-card';
     card.innerHTML = `
       <div class="library-thumb-wrap">
-        <img src="${pl.image || '/assets/zylo_logo.png'}" alt="" class="playlist-vector-img">
+        <img src="${coverImg}" alt="" class="playlist-vector-img">
       </div>
       <div class="library-item-info">
         <div class="library-item-title">${pl.name}</div>

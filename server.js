@@ -691,12 +691,13 @@ app.post('/api/import/spotify', async (req, res) => {
       });
     }
 
+    const plImage = image || resolvedTracks.find(t => t.image && !t.image.includes('zylo_logo'))?.image || resolvedTracks[0]?.image || '/assets/zylo_logo.png';
     res.json({
       success: true,
       playlist: {
         id: 'sp_pl_' + Date.now(),
         name: title,
-        image: image,
+        image: plImage,
         tracks: resolvedTracks
       }
     });
@@ -819,12 +820,14 @@ app.post('/api/import/youtube', async (req, res) => {
       });
     }
 
+    const coverImage = resolvedTracks.find(t => t.image && !t.image.includes('zylo_logo'))?.image || resolvedTracks[0]?.image || '/assets/zylo_logo.png';
+
     res.json({
       success: true,
       playlist: {
         id: 'yt_pl_' + Date.now(),
         name: title,
-        image: '/assets/zylo_logo.png',
+        image: coverImage,
         tracks: resolvedTracks
       }
     });
