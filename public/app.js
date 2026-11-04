@@ -55,6 +55,7 @@ const elements = {
   audio: document.getElementById('audio-engine'),
   ambientGlow: document.getElementById('ambient-glow'),
   mainContent: document.getElementById('main-content'),
+  topHeader: document.getElementById('top-header'),
 
   // Top Header
   headerProfileBtn: document.getElementById('header-profile-btn'),
@@ -89,7 +90,7 @@ const elements = {
   // Search / Explore Screen
   searchInput: document.getElementById('search-input'),
   searchClearBtn: document.getElementById('search-clear-btn'),
-  suggestionsDropdown: document.getElementById('search-suggestions-dropdown'),
+  quickTagsContainer: document.getElementById('quick-tags-container'),
   searchFilterPills: document.getElementById('search-filter-pills'),
   searchEmptyState: document.getElementById('search-empty-state'),
   searchResultsLists: document.getElementById('search-results-lists'),
@@ -565,7 +566,7 @@ elements.settingSleepTimer.addEventListener('change', () => {
 // ---------------------------------------------------------------------------
 function setupMediaSession(track) {
   if (!('mediaSession' in navigator) || !track) return;
-  const artworkUrl = track.image || '/assets/BloomeeLogoFG.png';
+  const artworkUrl = track.image || '/assets/zylo_logo.png';
 
   navigator.mediaSession.metadata = new MediaMetadata({
     title: track.title,

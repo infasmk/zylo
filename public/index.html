@@ -13,8 +13,8 @@
   <meta name="description" content="Zylo Music — Premium Dark Music Streaming Experience. Created by infas.mk.">
 
   <!-- Icons -->
-  <link rel="icon" type="image/png" href="/assets/BloomeeLogoFG.png">
-  <link rel="apple-touch-icon" href="/assets/BloomeeLogoFG.png">
+  <link rel="icon" type="image/png" href="/assets/zylo_logo.png">
+  <link rel="apple-touch-icon" href="/assets/zylo_logo.png">
   <link rel="manifest" href="/manifest.json">
 
   <!-- Fonts & Google Fonts -->
@@ -25,17 +25,24 @@
   <link rel="stylesheet" href="/styles.css">
 </head>
 <body class="dark-theme">
+  <!-- Light Mild Aurora Background Effect -->
+  <div class="aurora-container" aria-hidden="true">
+    <div class="aurora-beam aurora-beam-1"></div>
+    <div class="aurora-beam aurora-beam-2"></div>
+    <div class="aurora-beam aurora-beam-3"></div>
+  </div>
+
   <!-- Dynamic Ambient Background Glow -->
   <div id="ambient-glow" class="ambient-glow"></div>
 
   <!-- App Shell Container -->
   <div class="app-container">
     
-    <!-- Top Header (Home / Explore) -->
+    <!-- Top Header (Cleanly shown on Home Screen) -->
     <header class="top-header" id="top-header">
-      <div class="header-profile" id="header-profile-btn">
+      <div class="header-profile" id="header-profile-btn" title="View Library">
         <div class="profile-avatar">
-          <span>IM</span>
+          <img src="/assets/zylo_logo.png" alt="Zylo" class="header-avatar-logo">
         </div>
         <div class="profile-greeting">
           <span class="greeting-title">Hi, infas</span>
@@ -53,7 +60,7 @@
           </svg>
         </button>
 
-        <!-- Search Button -->
+        <!-- Search Button (Switches smoothly to Explore) -->
         <button class="header-icon-btn" id="header-search-btn" title="Search" aria-label="Search">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="11" cy="11" r="8"></circle>
@@ -137,9 +144,14 @@
       </section>
 
       <!-- ================================================================== -->
-      <!-- 2. EXPLORE / SEARCH SCREEN -->
+      <!-- 2. EXPLORE / SEARCH SCREEN (Unified, Clean, No Double Layout) -->
       <!-- ================================================================== -->
       <section id="view-explore" class="app-view">
+        <div class="explore-top-bar">
+          <h1 class="page-title">Explore & Search</h1>
+          <span class="explore-subtitle">Search over 100M+ songs, albums & playlists</span>
+        </div>
+
         <div class="search-header-box">
           <div class="search-input-bar">
             <svg class="search-bar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -149,13 +161,25 @@
             <input type="text" id="search-input" placeholder="Search songs, artists, albums, or playlists..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
             <button id="search-clear-btn" class="search-clear hidden" aria-label="Clear Search">✕</button>
           </div>
+        </div>
 
-          <!-- Live Autocomplete Dropdown -->
-          <div id="search-suggestions-dropdown" class="suggestions-dropdown hidden"></div>
+        <!-- Trending Quick Searches (when empty) -->
+        <div class="quick-tags-container" id="quick-tags-container">
+          <span class="quick-tags-label">Trending Searches</span>
+          <div class="quick-tags-row">
+            <button class="quick-tag-btn" data-query="Top Hits 2026">🔥 Top Hits 2026</button>
+            <button class="quick-tag-btn" data-query="Arijit Singh">Arijit Singh</button>
+            <button class="quick-tag-btn" data-query="Taylor Swift">Taylor Swift</button>
+            <button class="quick-tag-btn" data-query="Anirudh Ravichander">Anirudh</button>
+            <button class="quick-tag-btn" data-query="The Weeknd">The Weeknd</button>
+            <button class="quick-tag-btn" data-query="Lo-Fi Chill Beats">☕ Lo-Fi Chill</button>
+            <button class="quick-tag-btn" data-query="Shreya Ghoshal">Shreya Ghoshal</button>
+            <button class="quick-tag-btn" data-query="EDM Festival">⚡ EDM Party</button>
+          </div>
         </div>
 
         <!-- Filter Chips -->
-        <div class="category-tabs-wrap">
+        <div class="category-tabs-wrap search-filters-wrap">
           <div class="category-tabs" id="search-filter-pills">
             <button class="category-pill active" data-filter="all">All</button>
             <button class="category-pill" data-filter="songs">Songs</button>
@@ -174,8 +198,9 @@
             <h3>Explore Infinite Music</h3>
             <p>Stream millions of songs at 320 kbps. Search for any song, artist, album, or paste a Spotify / YouTube playlist.</p>
           </div>
+          
           <div id="search-results-lists" class="hidden">
-            <!-- Dynamic Search Results -->
+            <!-- Dynamic Unified Search Results (No overlapping dropdown) -->
           </div>
         </div>
       </section>
@@ -248,10 +273,10 @@
         <!-- Library Playlists & Collections List -->
         <div class="my-music-list" id="my-music-list">
           
-          <!-- Liked Songs Row Item -->
+          <!-- Liked Songs Row Item with 3D Zylo Vector Artwork -->
           <div class="library-item-card" id="library-liked-item">
             <div class="library-thumb-wrap liked-thumb">
-              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"></path></svg>
+              <img src="/assets/zylo_logo.png" alt="Zylo Liked" class="playlist-vector-img">
             </div>
             <div class="library-item-info">
               <h3 class="library-item-title">Liked Songs</h3>
@@ -262,10 +287,10 @@
             </button>
           </div>
 
-          <!-- Recently Played Row Item -->
+          <!-- Recently Played Row Item with 3D Zylo Vector Artwork -->
           <div class="library-item-card" id="library-history-item">
             <div class="library-thumb-wrap history-thumb">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+              <img src="/assets/zylo_logo.png" alt="Zylo History" class="playlist-vector-img history-tint">
             </div>
             <div class="library-item-info">
               <h3 class="library-item-title">Recently Played</h3>
@@ -365,13 +390,15 @@
           <h3 class="settings-group-title">About Zylo</h3>
           <div class="about-card">
             <div class="about-brand-wrap">
-              <div class="about-logo-circle">Z</div>
+              <div class="about-logo-box">
+                <img src="/assets/zylo_logo.png" alt="Zylo Logo" class="about-logo-3d">
+              </div>
               <div>
                 <h3>Zylo Music</h3>
                 <span class="about-credit-badge">Created by infas.mk</span>
               </div>
             </div>
-            <p class="about-desc">A premium, distraction-free music streaming experience inspired by Apple Music and modern dark aesthetics.</p>
+            <p class="about-desc">A premium, distraction-free music streaming experience inspired by Apple Music, Liquid Glass aesthetics, and 3D depth.</p>
             <div class="about-meta-row">
               <span>Version 3.2.0</span>
               <span>Open Source Engine</span>
@@ -393,7 +420,7 @@
 
         <div class="details-hero">
           <div class="details-cover-wrap">
-            <img id="details-cover" src="/assets/BloomeeLogoFG.png" alt="Cover" class="details-cover">
+            <img id="details-cover" src="/assets/zylo_logo.png" alt="Cover" class="details-cover">
           </div>
           <div class="details-meta">
             <span class="details-type" id="details-type">Playlist</span>
@@ -430,7 +457,7 @@
       </div>
       <div class="mini-player-content" id="mini-player-expand">
         <div class="mini-cover-wrap">
-          <img id="mini-cover" src="/assets/BloomeeLogoFG.png" alt="Cover" class="mini-cover">
+          <img id="mini-cover" src="/assets/zylo_logo.png" alt="Cover" class="mini-cover">
         </div>
         <div class="mini-info">
           <div class="mini-title-wrap">
@@ -550,7 +577,7 @@
         <!-- Tab 1: Centered Album Artwork -->
         <div id="tab-content-art" class="player-display-pane active">
           <div class="player-art-frame">
-            <img id="player-cover" src="/assets/BloomeeLogoFG.png" alt="Artwork" class="player-cover-img">
+            <img id="player-cover" src="/assets/zylo_logo.png" alt="Artwork" class="player-cover-img">
           </div>
         </div>
 
@@ -605,7 +632,7 @@
           <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="19 20 9 12 19 4 19 20"></polygon><line x1="5" y1="4" x2="5" y2="20" stroke="currentColor" stroke-width="2.5"></line></svg>
         </button>
 
-        <!-- Large Lime-Green Play/Pause Button -->
+        <!-- Large Lime-Green Play/Pause Button (3D tactile) -->
         <button class="player-huge-lime-btn" id="player-play-btn" title="Play/Pause">
           <svg class="play-icon" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 4 20 12 6 20 6 4"></polygon></svg>
           <svg class="pause-icon hidden" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>
@@ -707,7 +734,7 @@
     <div class="modal-card pwa-card">
       <div class="pwa-header-icon">
         <div class="pwa-icon-glow"></div>
-        <img src="/assets/BloomeeLogoFG.png" alt="Zylo Logo" class="pwa-logo-img">
+        <img src="/assets/zylo_logo.png" alt="Zylo Logo" class="pwa-logo-img">
       </div>
       <h2>Get Zylo App Experience</h2>
       <p class="pwa-sub-text">Install Zylo on your device for uninterrupted background playback, iOS lock-screen controls, and zero browser bars.</p>
