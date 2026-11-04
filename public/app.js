@@ -333,6 +333,7 @@ const DB_NAME = 'zylo_offline_db';
 const DB_VERSION = 1;
 const STORE_NAME = 'downloads';
 let dbInstance = null;
+const offlineTrackIds = new Set();
 
 function getDB() {
   return new Promise((resolve, reject) => {
@@ -354,13 +355,18 @@ function getDB() {
 
 async function isTrackDownloaded(trackId) {
   if (!trackId) return false;
+  if (offlineTrackIds.has(trackId)) return true;
   try {
     const db = await getDB();
     return new Promise((resolve) => {
       const tx = db.transaction(STORE_NAME, 'readonly');
       const store = tx.objectStore(STORE_NAME);
       const req = store.get(trackId);
-      req.onsuccess = () => resolve(!!req.result);
+      req.onsuccess = () => {
+        const found = !!req.result;
+        if (found) offlineTrackIds.add(trackId);
+        resolve(found);
+      };
       req.onerror = () => resolve(false);
     });
   } catch (e) {
@@ -507,7 +513,11 @@ async function updateDownloadBadges() {
   const all = await getAllDownloads();
   const count = all.length;
   let totalBytes = 0;
-  all.forEach(item => totalBytes += (item.size || 0));
+  offlineTrackIds.clear();
+  all.forEach(item => {
+    offlineTrackIds.add(item.id);
+    totalBytes += (item.size || 0);
+  });
   const totalMB = (totalBytes / (1024 * 1024)).toFixed(1);
 
   if (elements.downloadsPillCount) elements.downloadsPillCount.textContent = count;
@@ -545,24 +555,36 @@ function getStreamUrlForTrack(track) {
                  track.stream_url;
 
   if (!rawUrl) return null;
-  return `/api/stream?url=${encodeURIComponent(rawUrl)}`;
+  // Return direct high-speed HTTPS CDN URL for native hardware buffering and fast playback
+  return rawUrl;
 }
 
 async function playTrack(track, fromQueue = false) {
   if (!track) return;
 
-  // 1. Check if track is downloaded for offline playback
-  let streamSrc = null;
-  try {
-    const downloaded = await getDownloadedTrack(track.id);
-    if (downloaded && downloaded.audioBlob) {
-      streamSrc = URL.createObjectURL(downloaded.audioBlob);
-    }
-  } catch (e) {
-    console.error('IDB check error:', e);
+  state.currentTrack = track;
+  addToHistory(track);
+
+  if (!fromQueue) {
+    state.queue = [track];
+    state.queueIndex = 0;
+    state.originalQueue = [track];
   }
 
-  // 2. If not downloaded, resolve via network if online
+  // 1. Check if track is downloaded for offline playback (checked via memory Set first)
+  let streamSrc = null;
+  if (offlineTrackIds.has(track.id)) {
+    try {
+      const downloaded = await getDownloadedTrack(track.id);
+      if (downloaded && downloaded.audioBlob) {
+        streamSrc = URL.createObjectURL(downloaded.audioBlob);
+      }
+    } catch (e) {
+      console.error('IDB check error:', e);
+    }
+  }
+
+  // 2. If not downloaded, obtain stream URL
   if (!streamSrc) {
     if (!navigator.onLine) {
       showToast('Offline: Download this song first to listen offline');
@@ -589,15 +611,6 @@ async function playTrack(track, fromQueue = false) {
     streamSrc = getStreamUrlForTrack(track);
   }
 
-  state.currentTrack = track;
-  addToHistory(track);
-
-  if (!fromQueue) {
-    state.queue = [track];
-    state.queueIndex = 0;
-    state.originalQueue = [track];
-  }
-
   if (!streamSrc) {
     showToast('Stream unavailable for this track');
     return;
@@ -607,7 +620,10 @@ async function playTrack(track, fromQueue = false) {
   elements.audio.load();
 
   try {
-    await elements.audio.play();
+    const playPromise = elements.audio.play();
+    if (playPromise !== undefined) {
+      await playPromise;
+    }
     state.isPlaying = true;
   } catch (err) {
     console.error('Playback error:', err);
@@ -837,7 +853,6 @@ function clearSleepTimer() {
   if (elements.sleepTimerDesc) elements.sleepTimerDesc.textContent = 'Off';
   if (elements.settingsSummarySleep) elements.settingsSummarySleep.textContent = 'Off';
   if (elements.sleepSubpageStatusText) elements.sleepSubpageStatusText.textContent = 'Sleep Timer is Off';
-  if (elements.settingSleepTimer) elements.settingSleepTimer.value = '0';
 }
 
 // Sleep timer modal triggers
@@ -855,11 +870,6 @@ elements.timerOptionBtns.forEach(btn => {
     setSleepTimer(minutes);
     elements.sleepTimerModal.classList.add('hidden');
   });
-});
-
-elements.settingSleepTimer.addEventListener('change', () => {
-  const minutes = parseInt(elements.settingSleepTimer.value, 10);
-  setSleepTimer(minutes);
 });
 
 // ---------------------------------------------------------------------------
@@ -957,8 +967,23 @@ elements.audio.addEventListener('ended', () => {
 
 elements.audio.addEventListener('error', (e) => {
   console.error('Audio playback error:', e);
-  showToast('Stream error. Trying next stream...');
-  setTimeout(() => playNextTrack(), 1000);
+  const curSrc = elements.audio.src || '';
+  if (state.currentTrack && !curSrc.includes('/api/stream') && !curSrc.startsWith('blob:') && curSrc.startsWith('http')) {
+    console.log('Retrying with proxy stream fallback...');
+    elements.audio.src = `/api/stream?url=${encodeURIComponent(curSrc)}`;
+    elements.audio.load();
+    elements.audio.play().then(() => {
+      state.isPlaying = true;
+      updatePlayPauseIcons();
+    }).catch(err => {
+      console.warn('Proxy fallback play failed:', err);
+      showToast('Playback error. Trying next song...');
+      setTimeout(() => playNextTrack(), 1200);
+    });
+    return;
+  }
+  showToast('Stream error. Trying next track...');
+  setTimeout(() => playNextTrack(), 1200);
 });
 
 // ---------------------------------------------------------------------------
@@ -1521,11 +1546,17 @@ elements.seeAllPlaylistsBtn.addEventListener('click', () => {
 // Details View (Album / Playlist / Chart / Liked Songs / History / Downloads)
 // ---------------------------------------------------------------------------
 let currentDetailsTracks = [];
+let currentDetailsType = null;
+let currentDetailsId = null;
+let currentDetailsName = '';
+let isDownloadingBatch = false;
 
 async function loadDetailsView(type, id) {
   navigateTo('details');
   elements.detailsTracklist.innerHTML = '<div class="lyrics-loading">Loading songs...</div>';
   currentDetailsTracks = [];
+  currentDetailsType = type;
+  currentDetailsId = id;
 
   if (type === 'downloads') {
     elements.detailsCover.src = '/assets/zylo_logo.png';
@@ -1535,6 +1566,9 @@ async function loadDetailsView(type, id) {
     elements.detailsSubtitle.textContent = `${downloads.length} songs • Offline Listening`;
     elements.detailsExtra.textContent = 'Available without internet';
     currentDetailsTracks = downloads;
+    currentDetailsName = 'Downloaded Music';
+    if (elements.detailsEditPlaylistBtn) elements.detailsEditPlaylistBtn.classList.add('hidden');
+    if (elements.detailsDownloadPlaylistBtn) elements.detailsDownloadPlaylistBtn.classList.add('hidden');
     renderDetailsTracklist('Offline Downloads');
     return;
   }
@@ -1546,6 +1580,9 @@ async function loadDetailsView(type, id) {
     elements.detailsSubtitle.textContent = `${state.likedSongs.length} songs • Personal Collection`;
     elements.detailsExtra.textContent = 'Saved in your Zylo library';
     currentDetailsTracks = [...state.likedSongs];
+    currentDetailsName = 'Liked Songs';
+    if (elements.detailsEditPlaylistBtn) elements.detailsEditPlaylistBtn.classList.add('hidden');
+    if (elements.detailsDownloadPlaylistBtn) elements.detailsDownloadPlaylistBtn.classList.remove('hidden');
     renderDetailsTracklist('Liked Songs');
     return;
   }
@@ -1557,6 +1594,9 @@ async function loadDetailsView(type, id) {
     elements.detailsSubtitle.textContent = `${state.history.length} songs`;
     elements.detailsExtra.textContent = 'Listening History';
     currentDetailsTracks = [...state.history];
+    currentDetailsName = 'Recently Played';
+    if (elements.detailsEditPlaylistBtn) elements.detailsEditPlaylistBtn.classList.add('hidden');
+    if (elements.detailsDownloadPlaylistBtn) elements.detailsDownloadPlaylistBtn.classList.remove('hidden');
     renderDetailsTracklist('Recently Played');
     return;
   }
@@ -1570,6 +1610,9 @@ async function loadDetailsView(type, id) {
     elements.detailsSubtitle.textContent = `${pl.tracks.length} tracks`;
     elements.detailsExtra.textContent = pl.type === 'imported' ? 'Imported to Zylo' : 'Created by you';
     currentDetailsTracks = [...pl.tracks];
+    currentDetailsName = pl.name;
+    if (elements.detailsEditPlaylistBtn) elements.detailsEditPlaylistBtn.classList.remove('hidden');
+    if (elements.detailsDownloadPlaylistBtn) elements.detailsDownloadPlaylistBtn.classList.remove('hidden');
     renderDetailsTracklist(pl.name);
     return;
   }
@@ -1592,6 +1635,9 @@ async function loadDetailsView(type, id) {
     elements.detailsExtra.textContent = `${item.count} tracks`;
 
     currentDetailsTracks = item.songs || [];
+    currentDetailsName = item.title;
+    if (elements.detailsEditPlaylistBtn) elements.detailsEditPlaylistBtn.classList.add('hidden');
+    if (elements.detailsDownloadPlaylistBtn) elements.detailsDownloadPlaylistBtn.classList.remove('hidden');
     renderDetailsTracklist(item.title);
   } catch (err) {
     elements.detailsTracklist.innerHTML = '<div class="lyrics-loading">Failed to load content.</div>';
@@ -1634,10 +1680,245 @@ async function loadAndPlayPlaylist(id, title) {
   }
 }
 
+// Batch Playlist Download Engine
+async function downloadPlaylist(tracks, playlistName) {
+  if (!tracks || !tracks.length) {
+    showToast('No tracks to download');
+    return;
+  }
+  if (isDownloadingBatch) {
+    showToast('A download is already in progress...');
+    return;
+  }
+
+  isDownloadingBatch = true;
+  if (elements.detailsDownloadPlaylistText) {
+    elements.detailsDownloadPlaylistText.textContent = `Downloading (0/${tracks.length})...`;
+  }
+  showToast(`Downloading ${tracks.length} songs for offline listening...`);
+
+  let count = 0;
+  let skipped = 0;
+
+  for (let i = 0; i < tracks.length; i++) {
+    const track = tracks[i];
+    if (elements.detailsDownloadPlaylistText) {
+      elements.detailsDownloadPlaylistText.textContent = `Downloading (${i + 1}/${tracks.length})...`;
+    }
+
+    try {
+      const isDl = await isTrackDownloaded(track.id);
+      if (isDl) {
+        count++;
+        continue;
+      }
+
+      let streamUrl = getStreamUrlForTrack(track);
+      if (!streamUrl) {
+        const res = await fetch(`/api/resolve?title=${encodeURIComponent(track.title)}&artist=${encodeURIComponent(track.artist || '')}`);
+        const data = await res.json();
+        const resolved = data.track || data;
+        if (data.success && resolved.stream_url) {
+          track.stream_url = resolved.stream_url;
+          track.streams = resolved.streams;
+          track.duration = resolved.duration || track.duration;
+          if (!track.image) track.image = resolved.image;
+          streamUrl = getStreamUrlForTrack(track);
+        }
+      }
+
+      if (!streamUrl) {
+        skipped++;
+        continue;
+      }
+
+      const response = await fetch(streamUrl);
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const audioBlob = await response.blob();
+
+      let offlineImage = track.image || '/assets/zylo_logo.png';
+      try {
+        const imgRes = await fetch(offlineImage);
+        if (imgRes.ok) {
+          const imgBlob = await imgRes.blob();
+          offlineImage = await new Promise((res) => {
+            const reader = new FileReader();
+            reader.onloadend = () => res(reader.result);
+            reader.readAsDataURL(imgBlob);
+          });
+        }
+      } catch (_) {}
+
+      const record = {
+        id: track.id,
+        title: track.title,
+        artist: track.artist,
+        album: track.album || playlistName || 'Zylo Offline',
+        duration: track.duration || 0,
+        image: offlineImage,
+        audioBlob: audioBlob,
+        size: audioBlob.size,
+        downloadedAt: Date.now()
+      };
+
+      const db = await getDB();
+      await new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, 'readwrite');
+        const store = tx.objectStore(STORE_NAME);
+        const req = store.put(record);
+        req.onsuccess = () => resolve();
+        req.onerror = (e) => reject(e.target.error);
+      });
+
+      count++;
+      updateDownloadBadges();
+    } catch (err) {
+      console.warn('Batch download item error:', track.title, err);
+      skipped++;
+    }
+  }
+
+  isDownloadingBatch = false;
+  if (elements.detailsDownloadPlaylistText) {
+    elements.detailsDownloadPlaylistText.textContent = 'Download Playlist';
+  }
+  showToast(`Downloaded ${count} songs offline${skipped > 0 ? ` (${skipped} skipped)` : ''}!`);
+  updateDownloadBadges();
+}
+
+if (elements.detailsDownloadPlaylistBtn) {
+  elements.detailsDownloadPlaylistBtn.addEventListener('click', () => {
+    downloadPlaylist(currentDetailsTracks, currentDetailsName);
+  });
+}
+
+// Edit Playlist Modal Logic
+let editingPlaylist = null;
+let editingTracks = [];
+
+function openEditPlaylistModal(playlistId) {
+  const pl = state.playlists.find(p => p.id === playlistId);
+  if (!pl) return;
+
+  editingPlaylist = pl;
+  editingTracks = [...pl.tracks];
+
+  if (elements.editPlaylistNameInput) {
+    elements.editPlaylistNameInput.value = pl.name || '';
+  }
+  renderEditPlaylistTracks();
+  if (elements.editPlaylistModal) {
+    elements.editPlaylistModal.classList.remove('hidden');
+  }
+}
+
+function renderEditPlaylistTracks() {
+  if (elements.editTracksCount) {
+    elements.editTracksCount.textContent = `${editingTracks.length} tracks`;
+  }
+  if (!elements.editPlaylistTracksList) return;
+
+  elements.editPlaylistTracksList.innerHTML = '';
+  if (!editingTracks.length) {
+    elements.editPlaylistTracksList.innerHTML = '<div style="color:var(--text-secondary);font-size:0.85rem;padding:12px;text-align:center;">No tracks in playlist</div>';
+    return;
+  }
+
+  editingTracks.forEach((track, idx) => {
+    const row = document.createElement('div');
+    row.className = 'edit-track-row';
+    row.innerHTML = `
+      <img src="${track.image || '/assets/zylo_logo.png'}" alt="" class="edit-track-thumb">
+      <div class="edit-track-info">
+        <div class="edit-track-title">${track.title}</div>
+        <div class="edit-track-artist">${track.artist}</div>
+      </div>
+      <button class="remove-from-playlist-btn" data-index="${idx}" title="Remove track" aria-label="Remove">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+      </button>
+    `;
+
+    row.querySelector('.remove-from-playlist-btn').addEventListener('click', (e) => {
+      e.stopPropagation();
+      editingTracks.splice(idx, 1);
+      renderEditPlaylistTracks();
+    });
+
+    elements.editPlaylistTracksList.appendChild(row);
+  });
+}
+
+if (elements.detailsEditPlaylistBtn) {
+  elements.detailsEditPlaylistBtn.addEventListener('click', () => {
+    if (currentDetailsType === 'user_playlist' || currentDetailsType === 'imported') {
+      openEditPlaylistModal(currentDetailsId);
+    }
+  });
+}
+
+if (elements.editModalCloseBtn) {
+  elements.editModalCloseBtn.addEventListener('click', () => {
+    if (elements.editPlaylistModal) elements.editPlaylistModal.classList.add('hidden');
+  });
+}
+
+if (elements.savePlaylistEditsBtn) {
+  elements.savePlaylistEditsBtn.addEventListener('click', () => {
+    if (!editingPlaylist) return;
+    const newName = elements.editPlaylistNameInput.value.trim();
+    if (!newName) {
+      showToast('Please enter a playlist name');
+      return;
+    }
+
+    editingPlaylist.name = newName;
+    editingPlaylist.tracks = [...editingTracks];
+    if (editingTracks.length > 0 && (!editingPlaylist.image || editingPlaylist.image === '/assets/zylo_logo.png')) {
+      editingPlaylist.image = editingTracks[0].image || '/assets/zylo_logo.png';
+    }
+
+    saveLibrary();
+    if (elements.editPlaylistModal) elements.editPlaylistModal.classList.add('hidden');
+    showToast(`Updated playlist "${newName}"`);
+    loadDetailsView(editingPlaylist.type === 'imported' ? 'imported' : 'user_playlist', editingPlaylist.id);
+  });
+}
+
+if (elements.deletePlaylistBtn) {
+  elements.deletePlaylistBtn.addEventListener('click', () => {
+    if (!editingPlaylist) return;
+    if (confirm(`Are you sure you want to delete "${editingPlaylist.name}"?`)) {
+      state.playlists = state.playlists.filter(p => p.id !== editingPlaylist.id);
+      saveLibrary();
+      if (elements.editPlaylistModal) elements.editPlaylistModal.classList.add('hidden');
+      showToast(`Deleted "${editingPlaylist.name}"`);
+      navigateTo('library');
+    }
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Search (Unified Clean Search)
 // ---------------------------------------------------------------------------
 let searchDebounceTimer = null;
+
+if (elements.searchForm) {
+  elements.searchForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    clearTimeout(searchDebounceTimer);
+    const q = elements.searchInput.value.trim();
+    if (q) executeSearch(q);
+  });
+}
+
+elements.searchInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    clearTimeout(searchDebounceTimer);
+    const q = elements.searchInput.value.trim();
+    if (q) executeSearch(q);
+  }
+});
 
 elements.searchInput.addEventListener('input', () => {
   const q = elements.searchInput.value.trim();
@@ -2079,24 +2360,223 @@ elements.importSubmitBtn.addEventListener('click', async () => {
 });
 
 // ---------------------------------------------------------------------------
-// Settings Handlers
+// Settings Drill-Down Navigation & Subpages
 // ---------------------------------------------------------------------------
-elements.settingQuality.value = state.audioQuality;
-elements.settingQuality.addEventListener('change', () => {
-  state.audioQuality = elements.settingQuality.value;
-  localStorage.setItem('zylo_quality', state.audioQuality);
-  if (state.currentTrack) {
-    elements.playerQualityBadge.textContent = `${state.audioQuality} KBPS`;
-  }
-  showToast(`Streaming quality set to ${state.audioQuality} kbps`);
+function openSettingsSubpage(subpageEl) {
+  if (!subpageEl) return;
+  if (elements.settingsMainView) elements.settingsMainView.classList.add('hidden');
+  [
+    elements.subpageQuality,
+    elements.subpageSleep,
+    elements.subpageStorage,
+    elements.subpageImport,
+    elements.subpageInstall,
+    elements.subpageAbout
+  ].forEach(p => p && p.classList.add('hidden'));
+
+  subpageEl.classList.remove('hidden');
+  elements.mainContent.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function closeSettingsSubpage() {
+  [
+    elements.subpageQuality,
+    elements.subpageSleep,
+    elements.subpageStorage,
+    elements.subpageImport,
+    elements.subpageInstall,
+    elements.subpageAbout
+  ].forEach(p => p && p.classList.add('hidden'));
+
+  if (elements.settingsMainView) elements.settingsMainView.classList.remove('hidden');
+}
+
+// Settings Card Click Triggers
+if (elements.settingsCardQuality) {
+  elements.settingsCardQuality.addEventListener('click', () => {
+    elements.qualityRadioCards.forEach(card => {
+      card.classList.toggle('selected', card.dataset.quality === state.audioQuality);
+    });
+    openSettingsSubpage(elements.subpageQuality);
+  });
+}
+
+if (elements.settingsCardSleep) {
+  elements.settingsCardSleep.addEventListener('click', () => {
+    openSettingsSubpage(elements.subpageSleep);
+  });
+}
+
+if (elements.settingsCardStorage) {
+  elements.settingsCardStorage.addEventListener('click', () => {
+    updateDownloadBadges();
+    openSettingsSubpage(elements.subpageStorage);
+  });
+}
+
+if (elements.settingsCardImport) {
+  elements.settingsCardImport.addEventListener('click', () => {
+    openSettingsSubpage(elements.subpageImport);
+  });
+}
+
+if (elements.settingsCardInstall) {
+  elements.settingsCardInstall.addEventListener('click', () => {
+    openSettingsSubpage(elements.subpageInstall);
+  });
+}
+
+if (elements.settingsCardAbout) {
+  elements.settingsCardAbout.addEventListener('click', () => {
+    openSettingsSubpage(elements.subpageAbout);
+  });
+}
+
+// Subpage Back Buttons
+if (elements.backFromQuality) elements.backFromQuality.addEventListener('click', closeSettingsSubpage);
+if (elements.backFromSleep) elements.backFromSleep.addEventListener('click', closeSettingsSubpage);
+if (elements.backFromStorage) elements.backFromStorage.addEventListener('click', closeSettingsSubpage);
+if (elements.backFromImport) elements.backFromImport.addEventListener('click', closeSettingsSubpage);
+if (elements.backFromInstall) elements.backFromInstall.addEventListener('click', closeSettingsSubpage);
+if (elements.backFromAbout) elements.backFromAbout.addEventListener('click', closeSettingsSubpage);
+
+// Subpage: Audio Quality Selector
+elements.qualityRadioCards.forEach(card => {
+  card.addEventListener('click', () => {
+    const q = card.dataset.quality;
+    state.audioQuality = q;
+    localStorage.setItem('zylo_quality', q);
+
+    elements.qualityRadioCards.forEach(c => c.classList.remove('selected'));
+    card.classList.add('selected');
+
+    if (elements.settingsSummaryQuality) {
+      elements.settingsSummaryQuality.textContent = `${q} kbps`;
+    }
+    if (elements.playerQualityBadge) {
+      elements.playerQualityBadge.textContent = `${q} KBPS`;
+    }
+    showToast(`Streaming quality set to ${q} kbps`);
+  });
 });
 
-elements.settingAutoplay.checked = state.autoplay;
-elements.settingAutoplay.addEventListener('change', () => {
-  state.autoplay = elements.settingAutoplay.checked;
-  localStorage.setItem('zylo_autoplay', state.autoplay);
-  showToast(`Autoplay ${state.autoplay ? 'enabled' : 'disabled'}`);
+if (elements.settingAutoplay) {
+  elements.settingAutoplay.checked = state.autoplay;
+  elements.settingAutoplay.addEventListener('change', () => {
+    state.autoplay = elements.settingAutoplay.checked;
+    localStorage.setItem('zylo_autoplay', state.autoplay);
+    showToast(`Autoplay ${state.autoplay ? 'enabled' : 'disabled'}`);
+  });
+}
+
+// Subpage: Sleep Timer Buttons
+elements.subpageTimerBtns.forEach(btn => {
+  btn.addEventListener('click', () => {
+    const mins = parseInt(btn.dataset.minutes, 10);
+    setSleepTimer(mins);
+  });
 });
+
+if (elements.cancelSleepTimerBtn) {
+  elements.cancelSleepTimerBtn.addEventListener('click', () => {
+    clearSleepTimer();
+    showToast('Sleep timer turned off');
+  });
+}
+
+// Subpage: Storage Controls
+if (elements.subpageViewDownloadsBtn) {
+  elements.subpageViewDownloadsBtn.addEventListener('click', () => {
+    loadDetailsView('downloads');
+  });
+}
+
+if (elements.subpageClearStorageBtn) {
+  elements.subpageClearStorageBtn.addEventListener('click', async () => {
+    if (confirm('Clear all downloaded offline songs from storage?')) {
+      await clearAllDownloads();
+    }
+  });
+}
+
+// Subpage: Importer Controls
+let subpageImportSource = 'spotify';
+
+if (elements.subpageTabSpotify) {
+  elements.subpageTabSpotify.addEventListener('click', () => {
+    subpageImportSource = 'spotify';
+    elements.subpageTabSpotify.classList.add('active');
+    if (elements.subpageTabYoutube) elements.subpageTabYoutube.classList.remove('active');
+    if (elements.subpageImportHint) elements.subpageImportHint.textContent = 'Paste any Spotify Playlist, Album, or Track URL:';
+    if (elements.subpageImportInput) elements.subpageImportInput.placeholder = 'https://open.spotify.com/playlist/...';
+  });
+}
+
+if (elements.subpageTabYoutube) {
+  elements.subpageTabYoutube.addEventListener('click', () => {
+    subpageImportSource = 'youtube';
+    elements.subpageTabYoutube.classList.add('active');
+    if (elements.subpageTabSpotify) elements.subpageTabSpotify.classList.remove('active');
+    if (elements.subpageImportHint) elements.subpageImportHint.textContent = 'Paste any YouTube or YouTube Music Playlist URL:';
+    if (elements.subpageImportInput) elements.subpageImportInput.placeholder = 'https://www.youtube.com/playlist?list=...';
+  });
+}
+
+if (elements.subpageImportSubmitBtn) {
+  elements.subpageImportSubmitBtn.addEventListener('click', async () => {
+    const url = elements.subpageImportInput ? elements.subpageImportInput.value.trim() : '';
+    if (!url) return;
+
+    if (elements.subpageImportStatus) elements.subpageImportStatus.classList.remove('hidden');
+    if (elements.subpageImportStatusText) elements.subpageImportStatusText.textContent = 'Connecting and importing tracks...';
+
+    const endpoint = subpageImportSource === 'spotify' ? '/api/import/spotify' : '/api/import/youtube';
+
+    try {
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url })
+      });
+      const data = await res.json();
+
+      if (data.success && data.playlist) {
+        const pl = {
+          ...data.playlist,
+          type: 'imported'
+        };
+        state.playlists.unshift(pl);
+        saveLibrary();
+
+        if (elements.subpageImportStatus) elements.subpageImportStatus.classList.add('hidden');
+        if (elements.subpageImportInput) elements.subpageImportInput.value = '';
+        showToast(`Imported "${pl.name}" (${pl.tracks.length} tracks)!`);
+        loadDetailsView('imported', pl.id);
+      } else {
+        if (elements.subpageImportStatusText) {
+          elements.subpageImportStatusText.textContent = data.error || 'Failed to import. Check URL and try again.';
+        }
+      }
+    } catch (err) {
+      if (elements.subpageImportStatusText) {
+        elements.subpageImportStatusText.textContent = 'Error connecting to importer service.';
+      }
+    }
+  });
+}
+
+if (elements.subpageTriggerPwaBtn) {
+  elements.subpageTriggerPwaBtn.addEventListener('click', async () => {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      deferredPrompt = null;
+      if (outcome === 'accepted') showToast('Thank you for installing Zylo!');
+    } else {
+      showToast('Follow the steps to add Zylo to your Home Screen!');
+    }
+  });
+}
 
 // ---------------------------------------------------------------------------
 // First-Time PWA Install Prompt
@@ -2167,13 +2647,31 @@ window.addEventListener('keydown', (e) => {
     elements.importModal.classList.add('hidden');
     elements.sleepTimerModal.classList.add('hidden');
     elements.pwaInstallModal.classList.add('hidden');
+    if (elements.editPlaylistModal) elements.editPlaylistModal.classList.add('hidden');
+    closeSettingsSubpage();
   }
+});
+
+// Dismiss modal when clicking backdrop overlay
+document.querySelectorAll('.modal-overlay').forEach(modal => {
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) {
+      modal.classList.add('hidden');
+    }
+  });
 });
 
 // ---------------------------------------------------------------------------
 // Initial Boot
 // ---------------------------------------------------------------------------
 window.addEventListener('DOMContentLoaded', () => {
+  if (elements.settingsSummaryQuality) {
+    elements.settingsSummaryQuality.textContent = `${state.audioQuality} kbps`;
+  }
+  if (elements.settingsSummarySleep) {
+    elements.settingsSummarySleep.textContent = 'Off';
+  }
+
   updateLibraryUI();
   loadHomeData();
   checkFirstTimePWA();
