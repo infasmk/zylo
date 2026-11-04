@@ -67,7 +67,6 @@ const elements = {
   views: {
     home: document.getElementById('view-home'),
     explore: document.getElementById('view-explore'),
-    radio: document.getElementById('view-radio'),
     library: document.getElementById('view-library'),
     settings: document.getElementById('view-settings'),
     details: document.getElementById('view-details')
@@ -95,11 +94,6 @@ const elements = {
   searchEmptyState: document.getElementById('search-empty-state'),
   searchResultsLists: document.getElementById('search-results-lists'),
 
-  // Radio Screen
-  startRadioFlowBtn: document.getElementById('start-radio-flow-btn'),
-  radioStationsList: document.getElementById('radio-stations-list'),
-  radioTracksList: document.getElementById('radio-tracks-list'),
-
   // Library Screen
   libraryImportBtn: document.getElementById('library-import-btn'),
   createPlaylistBtn: document.getElementById('create-playlist-btn'),
@@ -110,6 +104,10 @@ const elements = {
   libraryHistoryItem: document.getElementById('library-history-item'),
   historyCountText: document.getElementById('history-count-text'),
   playHistoryBtn: document.getElementById('play-history-btn'),
+  libraryDownloadsItem: document.getElementById('library-downloads-item'),
+  downloadsCountText: document.getElementById('downloads-count-text'),
+  downloadsPillCount: document.getElementById('downloads-pill-count'),
+  playDownloadsBtn: document.getElementById('play-downloads-btn'),
   userPlaylistsContainer: document.getElementById('user-playlists-container'),
 
   // Details Screen
@@ -164,6 +162,7 @@ const elements = {
   playerRepeatBtn: document.getElementById('player-repeat-btn'),
   repeatOneIndicator: document.querySelector('.repeat-one-indicator'),
   playerQualityBadge: document.getElementById('player-quality-badge'),
+  playerDownloadBtn: document.getElementById('player-download-btn'),
   playerAddPlaylistBtn: document.getElementById('player-add-playlist-btn'),
 
   // Sleep Timer Modal
@@ -200,6 +199,9 @@ const elements = {
   settingAutoplay: document.getElementById('setting-autoplay'),
   settingSleepTimer: document.getElementById('setting-sleep-timer'),
   sleepTimerDesc: document.getElementById('sleep-timer-desc'),
+  settingsStorageUsed: document.getElementById('settings-storage-used'),
+  settingsViewDownloadsBtn: document.getElementById('settings-view-downloads-btn'),
+  settingsClearDownloadsBtn: document.getElementById('settings-clear-downloads-btn'),
 
   // Toast
   toast: document.getElementById('toast')
@@ -268,6 +270,209 @@ function addToHistory(track) {
 }
 
 // ---------------------------------------------------------------------------
+// Offline Storage Engine (IndexedDB)
+// ---------------------------------------------------------------------------
+const DB_NAME = 'zylo_offline_db';
+const DB_VERSION = 1;
+const STORE_NAME = 'downloads';
+let dbInstance = null;
+
+function getDB() {
+  return new Promise((resolve, reject) => {
+    if (dbInstance) return resolve(dbInstance);
+    const request = indexedDB.open(DB_NAME, DB_VERSION);
+    request.onupgradeneeded = (e) => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains(STORE_NAME)) {
+        db.createObjectStore(STORE_NAME, { keyPath: 'id' });
+      }
+    };
+    request.onsuccess = (e) => {
+      dbInstance = e.target.result;
+      resolve(dbInstance);
+    };
+    request.onerror = (e) => reject(e.target.error);
+  });
+}
+
+async function isTrackDownloaded(trackId) {
+  if (!trackId) return false;
+  try {
+    const db = await getDB();
+    return new Promise((resolve) => {
+      const tx = db.transaction(STORE_NAME, 'readonly');
+      const store = tx.objectStore(STORE_NAME);
+      const req = store.get(trackId);
+      req.onsuccess = () => resolve(!!req.result);
+      req.onerror = () => resolve(false);
+    });
+  } catch (e) {
+    return false;
+  }
+}
+
+async function getDownloadedTrack(trackId) {
+  if (!trackId) return null;
+  try {
+    const db = await getDB();
+    return new Promise((resolve) => {
+      const tx = db.transaction(STORE_NAME, 'readonly');
+      const store = tx.objectStore(STORE_NAME);
+      const req = store.get(trackId);
+      req.onsuccess = () => resolve(req.result || null);
+      req.onerror = () => resolve(null);
+    });
+  } catch (e) {
+    return null;
+  }
+}
+
+async function getAllDownloads() {
+  try {
+    const db = await getDB();
+    return new Promise((resolve) => {
+      const tx = db.transaction(STORE_NAME, 'readonly');
+      const store = tx.objectStore(STORE_NAME);
+      const req = store.getAll();
+      req.onsuccess = () => resolve(req.result || []);
+      req.onerror = () => resolve([]);
+    });
+  } catch (e) {
+    return [];
+  }
+}
+
+async function downloadTrack(track) {
+  if (!track) return;
+  showToast(`Downloading "${track.title}" for offline...`);
+
+  try {
+    let streamUrl = getStreamUrlForTrack(track);
+    if (!streamUrl) {
+      const res = await fetch(`/api/resolve?title=${encodeURIComponent(track.title)}&artist=${encodeURIComponent(track.artist || '')}`);
+      const data = await res.json();
+      if (data.success && data.track) {
+        track.stream_url = data.track.stream_url;
+        track.streams = data.track.streams;
+        track.duration = data.track.duration || track.duration;
+        if (!track.image) track.image = data.track.image;
+        streamUrl = getStreamUrlForTrack(track);
+      }
+    }
+
+    if (!streamUrl) {
+      showToast('Download failed: Stream not found');
+      return;
+    }
+
+    const response = await fetch(streamUrl);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const audioBlob = await response.blob();
+
+    let offlineImage = track.image || '/assets/zylo_logo.png';
+    try {
+      const imgRes = await fetch(offlineImage);
+      if (imgRes.ok) {
+        const imgBlob = await imgRes.blob();
+        offlineImage = await new Promise((res) => {
+          const reader = new FileReader();
+          reader.onloadend = () => res(reader.result);
+          reader.readAsDataURL(imgBlob);
+        });
+      }
+    } catch (_) {}
+
+    const record = {
+      id: track.id,
+      title: track.title,
+      artist: track.artist,
+      album: track.album || 'Zylo Offline',
+      duration: track.duration || 0,
+      image: offlineImage,
+      audioBlob: audioBlob,
+      size: audioBlob.size,
+      downloadedAt: Date.now()
+    };
+
+    const db = await getDB();
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, 'readwrite');
+      const store = tx.objectStore(STORE_NAME);
+      const req = store.put(record);
+      req.onsuccess = () => resolve();
+      req.onerror = (e) => reject(e.target.error);
+    });
+
+    showToast(`✓ Downloaded "${track.title}" for offline!`);
+    updateDownloadBadges();
+  } catch (err) {
+    console.error('Download error:', err);
+    showToast(`Download failed: ${err.message || 'Network error'}`);
+  }
+}
+
+async function removeDownload(trackId) {
+  try {
+    const db = await getDB();
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, 'readwrite');
+      const store = tx.objectStore(STORE_NAME);
+      const req = store.delete(trackId);
+      req.onsuccess = () => resolve();
+      req.onerror = (e) => reject(e.target.error);
+    });
+    showToast('Download removed from offline storage');
+    updateDownloadBadges();
+  } catch (err) {
+    console.error('Remove download error:', err);
+  }
+}
+
+async function clearAllDownloads() {
+  try {
+    const db = await getDB();
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, 'readwrite');
+      const store = tx.objectStore(STORE_NAME);
+      const req = store.clear();
+      req.onsuccess = () => resolve();
+      req.onerror = (e) => reject(e.target.error);
+    });
+    showToast('Cleared all offline downloads');
+    updateDownloadBadges();
+  } catch (err) {
+    console.error('Clear downloads error:', err);
+  }
+}
+
+async function updateDownloadBadges() {
+  const all = await getAllDownloads();
+  const count = all.length;
+  let totalBytes = 0;
+  all.forEach(item => totalBytes += (item.size || 0));
+  const totalMB = (totalBytes / (1024 * 1024)).toFixed(1);
+
+  if (elements.downloadsPillCount) elements.downloadsPillCount.textContent = count;
+  if (elements.downloadsCountText) elements.downloadsCountText.textContent = `${count} songs • ${totalMB} MB stored`;
+  if (elements.settingsStorageUsed) elements.settingsStorageUsed.textContent = `${count} songs (${totalMB} MB)`;
+
+  if (state.currentTrack && elements.playerDownloadBtn) {
+    const isDl = await isTrackDownloaded(state.currentTrack.id);
+    elements.playerDownloadBtn.classList.toggle('downloaded', isDl);
+    elements.playerDownloadBtn.title = isDl ? 'Downloaded (Tap to remove)' : 'Download for offline';
+  }
+
+  document.querySelectorAll('.track-download-btn').forEach(async (btn) => {
+    const trId = btn.dataset.trackId;
+    if (trId) {
+      const isDl = await isTrackDownloaded(trId);
+      btn.classList.toggle('downloaded', isDl);
+      btn.title = isDl ? 'Downloaded (Offline ready)' : 'Download for offline';
+    }
+  });
+}
+
+// ---------------------------------------------------------------------------
 // Audio Engine & Playback
 // ---------------------------------------------------------------------------
 function getStreamUrlForTrack(track) {
@@ -285,18 +490,41 @@ function getStreamUrlForTrack(track) {
 async function playTrack(track, fromQueue = false) {
   if (!track) return;
 
-  // If this is an imported placeholder track without stream_url, resolve it first
-  if (!track.stream_url && !track.streams) {
-    showToast(`Resolving ${track.title}...`);
-    try {
-      const res = await fetch(`/api/resolve?title=${encodeURIComponent(track.title)}&artist=${encodeURIComponent(track.artist || '')}`);
-      const data = await res.json();
-      if (data.success && data.track) {
-        Object.assign(track, data.track);
-      }
-    } catch (e) {
-      console.error('Resolve error:', e);
+  // 1. Check if track is downloaded for offline playback
+  let streamSrc = null;
+  try {
+    const downloaded = await getDownloadedTrack(track.id);
+    if (downloaded && downloaded.audioBlob) {
+      streamSrc = URL.createObjectURL(downloaded.audioBlob);
     }
+  } catch (e) {
+    console.error('IDB check error:', e);
+  }
+
+  // 2. If not downloaded, resolve via network if online
+  if (!streamSrc) {
+    if (!navigator.onLine) {
+      showToast('Offline: Download this song first to listen offline');
+      return;
+    }
+
+    if (!track.stream_url && !track.streams) {
+      showToast(`Resolving ${track.title}...`);
+      try {
+        const res = await fetch(`/api/resolve?title=${encodeURIComponent(track.title)}&artist=${encodeURIComponent(track.artist || '')}`);
+        const data = await res.json();
+        if (data.success && data.track) {
+          track.stream_url = data.track.stream_url;
+          track.streams = data.track.streams;
+          track.duration = data.track.duration || track.duration;
+          if (!track.image) track.image = data.track.image;
+        }
+      } catch (e) {
+        console.error('Resolve error:', e);
+      }
+    }
+
+    streamSrc = getStreamUrlForTrack(track);
   }
 
   state.currentTrack = track;
@@ -308,13 +536,12 @@ async function playTrack(track, fromQueue = false) {
     state.originalQueue = [track];
   }
 
-  const streamUrl = getStreamUrlForTrack(track);
-  if (!streamUrl) {
+  if (!streamSrc) {
     showToast('Stream unavailable for this track');
     return;
   }
 
-  elements.audio.src = streamUrl;
+  elements.audio.src = streamSrc;
   elements.audio.load();
 
   try {
@@ -713,21 +940,28 @@ function updatePlayerUI() {
   elements.miniPlayer.classList.remove('hidden');
 
   // Mini Player
-  elements.miniCover.src = track.image;
+  elements.miniCover.src = track.image || '/assets/zylo_logo.png';
   elements.miniTitle.textContent = track.title;
   elements.miniArtist.textContent = track.artist;
 
   // Full Player
-  elements.playerCover.src = track.image;
+  elements.playerCover.src = track.image || '/assets/zylo_logo.png';
   elements.playerTitle.textContent = track.title;
   elements.playerArtist.textContent = track.artist;
   elements.playerQualityBadge.textContent = `${state.audioQuality} KBPS`;
 
   // Dynamic Ambient Artwork Blur in Full Player
-  elements.playerAmbientBlur.style.backgroundImage = `url('${track.image}')`;
+  elements.playerAmbientBlur.style.backgroundImage = `url('${track.image || '/assets/zylo_logo.png'}')`;
 
   updatePlayPauseIcons();
   updateLikeButtons();
+
+  if (elements.playerDownloadBtn) {
+    isTrackDownloaded(track.id).then(isDl => {
+      elements.playerDownloadBtn.classList.toggle('downloaded', isDl);
+      elements.playerDownloadBtn.title = isDl ? 'Downloaded (Tap to remove)' : 'Download for offline';
+    });
+  }
 
   document.querySelectorAll('.track-tile').forEach(tile => {
     tile.classList.toggle('active', tile.dataset.id === track.id);
@@ -1001,7 +1235,7 @@ function createTrackTile(track, onPlay) {
 
   tile.innerHTML = `
     <div class="track-thumb-wrap">
-      <img class="track-thumb" src="${track.image}" alt="" loading="lazy">
+      <img class="track-thumb" src="${track.image || '/assets/zylo_logo.png'}" alt="" loading="lazy">
       ${state.currentTrack?.id === track.id && state.isPlaying ? '<div class="track-playing-eq"><span></span><span></span><span></span></div>' : ''}
     </div>
     <div class="track-info">
@@ -1010,6 +1244,9 @@ function createTrackTile(track, onPlay) {
     </div>
     <div class="track-duration">${formatSeconds(track.duration)}</div>
     <div class="track-actions">
+      <button class="track-btn track-download-btn" data-track-id="${track.id}" title="Download for offline" aria-label="Download for offline">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+      </button>
       <button class="track-btn track-like-btn ${isLiked ? 'liked' : ''}" title="Favorite" aria-label="Favorite">
         <svg viewBox="0 0 24 24" fill="${isLiked ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"></path></svg>
       </button>
@@ -1019,7 +1256,21 @@ function createTrackTile(track, onPlay) {
     </div>
   `;
 
-  tile.addEventListener('click', (e) => {
+  isTrackDownloaded(track.id).then(isDl => {
+    if (isDl) tile.querySelector('.track-download-btn')?.classList.add('downloaded');
+  });
+
+  tile.addEventListener('click', async (e) => {
+    if (e.target.closest('.track-download-btn')) {
+      e.stopPropagation();
+      const isDl = await isTrackDownloaded(track.id);
+      if (isDl) {
+        await removeDownload(track.id);
+      } else {
+        await downloadTrack(track);
+      }
+      return;
+    }
     if (e.target.closest('.track-like-btn')) {
       toggleLikeTrack(track);
       tile.querySelector('.track-like-btn').classList.toggle('liked', isTrackLiked(track.id));
@@ -1124,9 +1375,6 @@ async function loadHomeData() {
       );
     });
 
-    // 5. Radio Stations (for Radio view)
-    renderRadioView(data);
-
   } catch (err) {
     console.error('Failed to load home data:', err);
   }
@@ -1196,34 +1444,7 @@ elements.seeAllPlaylistsBtn.addEventListener('click', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Radio View
-// ---------------------------------------------------------------------------
-function renderRadioView(data) {
-  elements.radioStationsList.innerHTML = '';
-  (data.charts || []).forEach(chart => {
-    elements.radioStationsList.appendChild(
-      createMediaCard(chart, () => loadDetailsView('chart', chart.id))
-    );
-  });
-
-  elements.radioTracksList.innerHTML = '';
-  (data.trendingSongs || []).slice(0, 10).forEach((track, idx) => {
-    elements.radioTracksList.appendChild(
-      createTrackTile(track, () => playQueue(data.trendingSongs, idx, 'Radio Flow'))
-    );
-  });
-
-  elements.startRadioFlowBtn.onclick = () => {
-    if (data.trendingSongs?.length) {
-      state.isShuffle = true;
-      elements.playerShuffleBtn.classList.add('active');
-      playQueue(data.trendingSongs, 0, 'Zylo Radio Flow');
-    }
-  };
-}
-
-// ---------------------------------------------------------------------------
-// Details View (Album / Playlist / Chart / Liked Songs / History)
+// Details View (Album / Playlist / Chart / Liked Songs / History / Downloads)
 // ---------------------------------------------------------------------------
 let currentDetailsTracks = [];
 
@@ -1231,6 +1452,18 @@ async function loadDetailsView(type, id) {
   navigateTo('details');
   elements.detailsTracklist.innerHTML = '<div class="lyrics-loading">Loading songs...</div>';
   currentDetailsTracks = [];
+
+  if (type === 'downloads') {
+    elements.detailsCover.src = '/assets/zylo_logo.png';
+    elements.detailsType.textContent = 'Offline';
+    elements.detailsTitle.textContent = 'Downloaded Music';
+    const downloads = await getAllDownloads();
+    elements.detailsSubtitle.textContent = `${downloads.length} songs • Offline Listening`;
+    elements.detailsExtra.textContent = 'Available without internet';
+    currentDetailsTracks = downloads;
+    renderDetailsTracklist('Offline Downloads');
+    return;
+  }
 
   if (type === 'liked') {
     elements.detailsCover.src = '/assets/zylo_logo.png';
@@ -1328,22 +1561,9 @@ async function loadAndPlayPlaylist(id, title) {
 }
 
 // ---------------------------------------------------------------------------
-// Search & Quick Tags (Unified Clean Search — No Double Layout)
+// Search (Unified Clean Search)
 // ---------------------------------------------------------------------------
 let searchDebounceTimer = null;
-
-// Quick trending tags listener
-document.querySelectorAll('.quick-tag-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    const q = btn.dataset.query;
-    elements.searchInput.value = q;
-    elements.searchClearBtn.classList.remove('hidden');
-    if (elements.quickTagsContainer) elements.quickTagsContainer.classList.add('hidden');
-    elements.searchEmptyState.classList.add('hidden');
-    elements.searchResultsLists.classList.remove('hidden');
-    executeSearch(q);
-  });
-});
 
 elements.searchInput.addEventListener('input', () => {
   const q = elements.searchInput.value.trim();
@@ -1351,13 +1571,11 @@ elements.searchInput.addEventListener('input', () => {
 
   clearTimeout(searchDebounceTimer);
   if (!q) {
-    if (elements.quickTagsContainer) elements.quickTagsContainer.classList.remove('hidden');
     elements.searchEmptyState.classList.remove('hidden');
     elements.searchResultsLists.classList.add('hidden');
     return;
   }
 
-  if (elements.quickTagsContainer) elements.quickTagsContainer.classList.add('hidden');
   elements.searchEmptyState.classList.add('hidden');
   elements.searchResultsLists.classList.remove('hidden');
 
@@ -1369,7 +1587,6 @@ elements.searchInput.addEventListener('input', () => {
 elements.searchClearBtn.addEventListener('click', () => {
   elements.searchInput.value = '';
   elements.searchClearBtn.classList.add('hidden');
-  if (elements.quickTagsContainer) elements.quickTagsContainer.classList.remove('hidden');
   elements.searchEmptyState.classList.remove('hidden');
   elements.searchResultsLists.classList.add('hidden');
   elements.searchInput.focus();
@@ -1491,24 +1708,32 @@ elements.searchFilterPills.querySelectorAll('.category-pill').forEach(pill => {
 function updateLibraryUI() {
   elements.likedCountText.textContent = `${state.likedSongs.length} songs • Favorites`;
   elements.historyCountText.textContent = `${state.history.length} songs • History`;
+  updateDownloadBadges();
 
   const filter = state.libraryFilter;
   elements.userPlaylistsContainer.innerHTML = '';
 
-  // Show/Hide Liked and History according to filter
+  // Show/Hide Liked, History and Downloads according to filter
   if (filter === 'all') {
+    if (elements.libraryDownloadsItem) elements.libraryDownloadsItem.classList.remove('hidden');
     elements.libraryLikedItem.classList.remove('hidden');
     elements.libraryHistoryItem.classList.remove('hidden');
+  } else if (filter === 'downloads') {
+    if (elements.libraryDownloadsItem) elements.libraryDownloadsItem.classList.remove('hidden');
+    elements.libraryLikedItem.classList.add('hidden');
+    elements.libraryHistoryItem.classList.add('hidden');
   } else if (filter === 'liked') {
+    if (elements.libraryDownloadsItem) elements.libraryDownloadsItem.classList.add('hidden');
     elements.libraryLikedItem.classList.remove('hidden');
     elements.libraryHistoryItem.classList.add('hidden');
   } else if (filter === 'playlists' || filter === 'imported') {
+    if (elements.libraryDownloadsItem) elements.libraryDownloadsItem.classList.add('hidden');
     elements.libraryLikedItem.classList.add('hidden');
     elements.libraryHistoryItem.classList.add('hidden');
   }
 
   // Filter playlists
-  const playlistsToShow = state.playlists.filter(pl => {
+  const playlistsToShow = (filter === 'downloads') ? [] : state.playlists.filter(pl => {
     if (filter === 'all' || filter === 'playlists') return true;
     if (filter === 'imported') return pl.type === 'imported';
     return false;
@@ -1562,6 +1787,43 @@ elements.playHistoryBtn.addEventListener('click', (e) => {
     showToast('No history yet');
   }
 });
+
+if (elements.libraryDownloadsItem) {
+  elements.libraryDownloadsItem.addEventListener('click', () => loadDetailsView('downloads'));
+}
+if (elements.playDownloadsBtn) {
+  elements.playDownloadsBtn.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    const dls = await getAllDownloads();
+    if (dls.length > 0) {
+      playQueue(dls, 0, 'Offline Downloads');
+    } else {
+      showToast('No downloaded songs yet. Tap the download icon to save songs offline.');
+    }
+  });
+}
+if (elements.settingsViewDownloadsBtn) {
+  elements.settingsViewDownloadsBtn.addEventListener('click', () => loadDetailsView('downloads'));
+}
+if (elements.settingsClearDownloadsBtn) {
+  elements.settingsClearDownloadsBtn.addEventListener('click', async () => {
+    if (confirm('Clear all downloaded offline songs from storage?')) {
+      await clearAllDownloads();
+    }
+  });
+}
+
+if (elements.playerDownloadBtn) {
+  elements.playerDownloadBtn.addEventListener('click', async () => {
+    if (!state.currentTrack) return;
+    const isDl = await isTrackDownloaded(state.currentTrack.id);
+    if (isDl) {
+      await removeDownload(state.currentTrack.id);
+    } else {
+      await downloadTrack(state.currentTrack);
+    }
+  });
+}
 
 elements.libraryFilterTabs.querySelectorAll('.category-pill').forEach(pill => {
   pill.addEventListener('click', () => {
@@ -1691,7 +1953,9 @@ function openImportModal(source = 'spotify') {
   elements.importUrlInput.focus();
 }
 
-elements.headerImportBtn.addEventListener('click', () => openImportModal('spotify'));
+if (elements.headerImportBtn) {
+  elements.headerImportBtn.addEventListener('click', () => openImportModal('spotify'));
+}
 elements.libraryImportBtn.addEventListener('click', () => openImportModal('spotify'));
 if (elements.settingsOpenImportBtn) {
   elements.settingsOpenImportBtn.addEventListener('click', () => openImportModal('spotify'));

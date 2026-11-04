@@ -2368,53 +2368,112 @@ html, body {
   gap: 8px;
 }
 
-/* Settings Components */
+/* ==========================================================================
+   Clean Settings Cards Layout
+   ========================================================================== */
 .settings-header {
-  padding: calc(var(--safe-top) + 16px) 20px 8px 20px;
+  padding: calc(var(--safe-top) + 16px) 20px 14px 20px;
 }
 
-.settings-group {
-  margin-bottom: 24px;
+.settings-subtitle {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.settings-cards-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
   padding: 0 20px;
 }
 
-.settings-group-title {
-  font-size: 0.85rem;
-  font-weight: 800;
-  text-transform: uppercase;
-  color: var(--text-secondary);
-  letter-spacing: 0.6px;
-  margin-bottom: 12px;
-}
-
-.settings-item {
+.clean-card {
   background: var(--bg-glass-elevated);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
+  backdrop-filter: blur(28px) saturate(180%);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
   border: 1px solid var(--border-color);
   box-shadow: var(--shadow-sm), var(--glass-specular-soft);
-  border-radius: var(--radius-md);
-  padding: 14px 16px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 8px;
+  border-radius: var(--radius-lg);
+  padding: 16px 18px;
+  transition: transform 0.2s ease, border-color 0.2s ease;
 }
 
-.settings-label {
+.clean-card:hover {
+  border-color: var(--border-hover);
+  transform: translateY(-1px);
+}
+
+.clean-card-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.card-icon-wrap {
+  width: 42px;
+  height: 42px;
+  border-radius: var(--radius-md);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-main);
+  flex-shrink: 0;
+}
+
+.card-icon-wrap.lime {
+  background: var(--accent-lime-dim);
+  border-color: var(--border-lime);
+  color: var(--accent-lime);
+}
+
+.card-icon-wrap svg {
+  width: 20px;
+  height: 20px;
+}
+
+.card-title-group {
+  flex: 1;
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
 
-.setting-name {
-  font-size: 0.94rem;
+.card-title-group h3 {
+  font-size: 1rem;
   font-weight: 700;
+  color: var(--text-main);
 }
 
-.setting-desc {
+.card-title-group span {
   font-size: 0.78rem;
   color: var(--text-secondary);
+}
+
+.clean-card-content {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.setting-row-action {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
 }
 
 .settings-select {
@@ -2423,50 +2482,18 @@ html, body {
   border: 1px solid var(--border-color);
   padding: 8px 12px;
   border-radius: var(--radius-sm);
-  font-size: 0.85rem;
+  font-size: 0.84rem;
   outline: none;
+  font-family: inherit;
+  font-weight: 600;
 }
 
-.settings-card {
-  background: var(--bg-glass-elevated);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-  border: 1px solid var(--border-color);
-  box-shadow: var(--shadow-sm), var(--glass-specular-soft);
-  border-radius: var(--radius-md);
+.settings-select:focus {
+  border-color: var(--accent-lime);
+}
+
+.about-zylo-card {
   padding: 18px;
-}
-
-.settings-card h4 {
-  font-size: 0.96rem;
-  margin-bottom: 8px;
-  color: var(--accent-lime);
-}
-
-.ios-instructions {
-  margin-left: 20px;
-  font-size: 0.82rem;
-  line-height: 1.6;
-  color: var(--text-secondary);
-}
-
-.settings-note {
-  font-size: 0.78rem;
-  color: var(--text-dim);
-  margin-top: 10px;
-}
-
-.about-card {
-  background: var(--bg-glass-elevated);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-  border: 1px solid var(--border-color);
-  box-shadow: var(--shadow-3d), var(--glass-specular);
-  border-radius: var(--radius-lg);
-  padding: 22px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
 }
 
 .about-brand-wrap {
@@ -2486,6 +2513,7 @@ html, body {
   align-items: center;
   justify-content: center;
   overflow: hidden;
+  flex-shrink: 0;
 }
 
 .about-logo-3d {
@@ -2500,19 +2528,49 @@ html, body {
   color: var(--accent-lime);
 }
 
-.about-desc {
-  font-size: 0.84rem;
-  color: var(--text-secondary);
-  line-height: 1.45;
-}
-
-.about-meta-row {
-  display: flex;
-  gap: 16px;
+.about-version {
   font-size: 0.75rem;
   color: var(--text-dim);
-  border-top: 1px solid var(--border-color);
-  padding-top: 10px;
+  margin-top: 2px;
+}
+
+/* Offline & Downloads Badges & Buttons */
+.downloads-thumb {
+  position: relative;
+}
+
+.offline-badge-icon {
+  position: absolute;
+  bottom: 2px;
+  right: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--accent-lime);
+  color: var(--text-dark);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.6);
+}
+
+.offline-badge-icon svg {
+  width: 11px;
+  height: 11px;
+}
+
+.track-download-btn.downloaded {
+  color: var(--accent-lime);
+}
+
+.track-download-btn.downloaded svg {
+  stroke: var(--accent-lime);
+  fill: none;
+}
+
+.strip-btn.downloaded {
+  color: var(--accent-lime);
 }
 
 /* Switch */

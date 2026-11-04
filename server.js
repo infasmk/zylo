@@ -267,55 +267,97 @@ app.get('/api/suggestions', async (req, res) => {
   }
 });
 
-// 3. Search: songs, albums, playlists, artists
+function cleanSearchQuery(q) {
+  if (!q) return '';
+  return q
+    .replace(/\(.*?\)|\[.*?\]/g, ' ')
+    .replace(/\b(feat|ft|official|video|audio|lyrics|remix|slowed|reverb|hd|4k)\b/gi, ' ')
+    .replace(/[^a-zA-Z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+// 3. Search: songs, albums, playlists, artists (Multi-tier deep search)
 app.get('/api/search', async (req, res) => {
-  const query = req.query.q;
+  const rawQuery = req.query.q;
+  if (!rawQuery) return res.json({ success: true, songs: [], albums: [], playlists: [], artists: [] });
+
   const page = req.query.p || 1;
-  const limit = req.query.n || 24;
-  if (!query) return res.json({ success: true, results: [] });
+  const limit = req.query.n || 30;
+  const query = rawQuery.trim();
+  const cleaned = cleanSearchQuery(query);
 
   try {
-    const songData = await fetchSaavn('search.getResults', { q: query, p: page, n: limit });
-    const songs = (songData.results || []).map(formatTrack).filter(Boolean);
+    const [songData, acData, albumData, playlistData, artistData] = await Promise.all([
+      fetchSaavn('search.getResults', { q: query, p: page, n: limit }).catch(() => ({})),
+      fetchSaavn('autocomplete.get', { query: query }).catch(() => ({})),
+      fetchSaavn('search.getAlbumResults', { q: query, p: 1, n: 8 }).catch(() => ({})),
+      fetchSaavn('search.getPlaylistResults', { q: query, p: 1, n: 8 }).catch(() => ({})),
+      fetchSaavn('search.getArtistResults', { q: query, p: 1, n: 8 }).catch(() => ({}))
+    ]);
 
-    let albums = [];
-    let playlists = [];
-    let artists = [];
+    // Exact matches from autocomplete (JioSaavn exact title matcher)
+    let exactAcSongs = [];
+    const acPids = (acData.songs?.data || []).slice(0, 6).map(s => s.id).filter(Boolean);
+    if (acPids.length > 0) {
+      try {
+        const detailsData = await fetchSaavn('song.getDetails', { pids: acPids.join(',') });
+        const songsList = detailsData.songs || Object.values(detailsData).filter(x => x && x.id);
+        exactAcSongs = songsList.map(formatTrack).filter(Boolean);
+      } catch (e) {}
+    }
 
-    try {
-      const albumData = await fetchSaavn('search.getAlbumResults', { q: query, p: 1, n: 8 });
-      albums = (albumData.results || []).map(a => ({
-        id: a.id || a.albumid,
-        title: cleanHtml(a.title || a.name),
-        artist: cleanHtml(a.subtitle || a.music || a.artist || ''),
-        image: formatArtworkUrl(a.image),
-        year: a.year || '',
-        type: 'album'
-      }));
-    } catch (e) {}
+    // Main search results
+    const mainSongs = (songData.results || []).map(formatTrack).filter(Boolean);
 
-    try {
-      const playlistData = await fetchSaavn('search.getPlaylistResults', { q: query, p: 1, n: 8 });
-      playlists = (playlistData.results || []).map(p => ({
-        id: p.id || p.listid,
-        title: cleanHtml(p.title || p.listname),
-        subtitle: cleanHtml(p.subtitle || p.more_info?.firstname || 'Playlist'),
-        image: formatArtworkUrl(p.image),
-        count: p.more_info?.song_count || p.count || '',
-        type: 'playlist'
-      }));
-    } catch (e) {}
+    // If query has extra terms and results are low, fallback with cleaned query
+    let fallbackSongs = [];
+    if (mainSongs.length < 5 && cleaned && cleaned.toLowerCase() !== query.toLowerCase()) {
+      try {
+        const fbData = await fetchSaavn('search.getResults', { q: cleaned, p: 1, n: 15 });
+        fallbackSongs = (fbData.results || []).map(formatTrack).filter(Boolean);
+      } catch (e) {}
+    }
 
-    try {
-      const artistData = await fetchSaavn('search.getArtistResults', { q: query, p: 1, n: 8 });
-      artists = (artistData.results || []).map(art => ({
-        id: art.id || art.artistid,
-        name: cleanHtml(art.name || art.title),
-        role: cleanHtml(art.role || 'Artist'),
-        image: formatArtworkUrl(art.image),
-        type: 'artist'
-      }));
-    } catch (e) {}
+    // Merge exact matches first, then main results, deduplicated by ID & title
+    const allSongs = [...exactAcSongs, ...mainSongs, ...fallbackSongs];
+    const seenIds = new Set();
+    const seenTitles = new Set();
+    const songs = [];
+    for (const s of allSongs) {
+      if (!s || !s.id || seenIds.has(s.id)) continue;
+      const key = `${s.title.toLowerCase().trim()}|${s.artist.toLowerCase().trim()}`;
+      if (seenTitles.has(key)) continue;
+      seenIds.add(s.id);
+      seenTitles.add(key);
+      songs.push(s);
+    }
+
+    const albums = (albumData.results || []).map(a => ({
+      id: a.id || a.albumid,
+      title: cleanHtml(a.title || a.name),
+      artist: cleanHtml(a.subtitle || a.music || a.artist || ''),
+      image: formatArtworkUrl(a.image),
+      year: a.year || '',
+      type: 'album'
+    }));
+
+    const playlists = (playlistData.results || []).map(p => ({
+      id: p.id || p.listid,
+      title: cleanHtml(p.title || p.listname),
+      subtitle: cleanHtml(p.subtitle || p.more_info?.firstname || 'Playlist'),
+      image: formatArtworkUrl(p.image),
+      count: p.more_info?.song_count || p.count || '',
+      type: 'playlist'
+    }));
+
+    const artists = (artistData.results || []).map(art => ({
+      id: art.id || art.artistid,
+      name: cleanHtml(art.name || art.title),
+      role: cleanHtml(art.role || 'Artist'),
+      image: formatArtworkUrl(art.image),
+      type: 'artist'
+    }));
 
     res.json({
       success: true,
@@ -334,7 +376,7 @@ app.get('/api/song/:id', async (req, res) => {
   const songId = req.params.id;
   try {
     const data = await fetchSaavn('song.getDetails', { pids: songId });
-    const rawSong = data[songId] || (Array.isArray(data) ? data[0] : null);
+    const rawSong = data.songs?.[0] || data[songId] || (Array.isArray(data) ? data[0] : null);
     if (!rawSong) {
       return res.status(404).json({ success: false, message: 'Song not found' });
     }
@@ -554,7 +596,7 @@ app.post('/api/import/spotify', async (req, res) => {
     const data = JSON.parse(match[1]);
     const entity = data.props?.pageProps?.state?.data?.entity;
     const title = entity?.name || 'Imported Spotify Playlist';
-    const image = entity?.images?.[0]?.url || '/assets/BloomeeLogoFG.png';
+    const image = entity?.images?.[0]?.url || '/assets/zylo_logo.png';
     const rawTracks = entity?.trackList || [];
 
     // Format tracks
@@ -564,49 +606,52 @@ app.post('/api/import/spotify', async (req, res) => {
       duration: Math.round((t.duration || 0) / 1000)
     })).filter(t => t.title);
 
-    // Auto-match top 10 tracks into playable streams immediately
+    // Auto-match top 15 tracks into playable streams immediately WITHOUT changing original titles/artists!
     const resolvedTracks = [];
-    for (let i = 0; i < Math.min(extractedTracks.length, 10); i++) {
+    for (let i = 0; i < Math.min(extractedTracks.length, 15); i++) {
+      const item = extractedTracks[i];
       try {
-        const item = extractedTracks[i];
+        const cleanT = cleanSearchQuery(item.title);
+        const cleanA = cleanSearchQuery(item.artist);
         const searchRes = await fetchSaavn('search.getResults', {
-          q: `${item.title} ${item.artist}`,
+          q: `${cleanT} ${cleanA}`.trim(),
           p: 1,
           n: 1
         });
         const matched = (searchRes.results || []).map(formatTrack).filter(Boolean)[0];
-        if (matched) {
-          resolvedTracks.push(matched);
-        } else {
-          resolvedTracks.push({
-            id: `sp_${Date.now()}_${i}`,
-            title: item.title,
-            artist: item.artist,
-            duration: item.duration,
-            image: image,
-            stream_url: null
-          });
-        }
+        resolvedTracks.push({
+          id: matched ? matched.id : `sp_${Date.now()}_${i}`,
+          title: item.title, // PRESERVE EXACT ORIGINAL TITLE
+          artist: item.artist, // PRESERVE EXACT ORIGINAL ARTIST
+          album: matched?.album || title,
+          duration: item.duration || matched?.duration || 210,
+          image: matched?.image || image || '/assets/zylo_logo.png',
+          streams: matched?.streams || null,
+          stream_url: matched?.stream_url || null
+        });
       } catch (e) {
         resolvedTracks.push({
           id: `sp_${Date.now()}_${i}`,
-          title: extractedTracks[i].title,
-          artist: extractedTracks[i].artist,
-          duration: extractedTracks[i].duration,
-          image: image,
+          title: item.title,
+          artist: item.artist,
+          duration: item.duration,
+          image: image || '/assets/zylo_logo.png',
+          streams: null,
           stream_url: null
         });
       }
     }
 
-    // Add remaining tracks (will be resolved when clicked/played)
-    for (let i = 10; i < extractedTracks.length; i++) {
+    // Add remaining tracks (will be resolved lazily when played)
+    for (let i = 15; i < extractedTracks.length; i++) {
+      const item = extractedTracks[i];
       resolvedTracks.push({
         id: `sp_${Date.now()}_${i}`,
-        title: extractedTracks[i].title,
-        artist: extractedTracks[i].artist,
-        duration: extractedTracks[i].duration,
-        image: image,
+        title: item.title,
+        artist: item.artist,
+        duration: item.duration,
+        image: image || '/assets/zylo_logo.png',
+        streams: null,
         stream_url: null
       });
     }
@@ -690,48 +735,51 @@ app.post('/api/import/youtube', async (req, res) => {
       return res.status(400).json({ success: false, error: 'No songs found in this YouTube Playlist' });
     }
 
-    // Auto-match first 10 tracks
+    // Auto-match first 15 tracks WITHOUT changing original titles/artists!
     const resolvedTracks = [];
-    for (let i = 0; i < Math.min(extractedTracks.length, 10); i++) {
+    for (let i = 0; i < Math.min(extractedTracks.length, 15); i++) {
+      const item = extractedTracks[i];
       try {
-        const item = extractedTracks[i];
+        const cleanT = cleanSearchQuery(item.title);
+        const cleanA = cleanSearchQuery(item.artist);
         const searchRes = await fetchSaavn('search.getResults', {
-          q: `${item.title} ${item.artist}`,
+          q: `${cleanT} ${cleanA}`.trim(),
           p: 1,
           n: 1
         });
         const matched = (searchRes.results || []).map(formatTrack).filter(Boolean)[0];
-        if (matched) {
-          resolvedTracks.push(matched);
-        } else {
-          resolvedTracks.push({
-            id: `yt_${Date.now()}_${i}`,
-            title: item.title,
-            artist: item.artist,
-            duration: 210,
-            image: '/assets/BloomeeLogoFG.png',
-            stream_url: null
-          });
-        }
+        resolvedTracks.push({
+          id: matched ? matched.id : `yt_${Date.now()}_${i}`,
+          title: item.title, // PRESERVE EXACT ORIGINAL TITLE
+          artist: item.artist, // PRESERVE EXACT ORIGINAL ARTIST
+          album: matched?.album || title,
+          duration: matched?.duration || 210,
+          image: matched?.image || '/assets/zylo_logo.png',
+          streams: matched?.streams || null,
+          stream_url: matched?.stream_url || null
+        });
       } catch (e) {
         resolvedTracks.push({
           id: `yt_${Date.now()}_${i}`,
-          title: extractedTracks[i].title,
-          artist: extractedTracks[i].artist,
+          title: item.title,
+          artist: item.artist,
           duration: 210,
-          image: '/assets/BloomeeLogoFG.png',
+          image: '/assets/zylo_logo.png',
+          streams: null,
           stream_url: null
         });
       }
     }
 
-    for (let i = 10; i < extractedTracks.length; i++) {
+    for (let i = 15; i < extractedTracks.length; i++) {
+      const item = extractedTracks[i];
       resolvedTracks.push({
         id: `yt_${Date.now()}_${i}`,
-        title: extractedTracks[i].title,
-        artist: extractedTracks[i].artist,
+        title: item.title,
+        artist: item.artist,
         duration: 210,
-        image: '/assets/BloomeeLogoFG.png',
+        image: '/assets/zylo_logo.png',
+        streams: null,
         stream_url: null
       });
     }
@@ -741,7 +789,7 @@ app.post('/api/import/youtube', async (req, res) => {
       playlist: {
         id: 'yt_pl_' + Date.now(),
         name: title,
-        image: '/assets/BloomeeLogoFG.png',
+        image: '/assets/zylo_logo.png',
         tracks: resolvedTracks
       }
     });
@@ -751,20 +799,28 @@ app.post('/api/import/youtube', async (req, res) => {
   }
 });
 
-// 12. Lazy Resolution endpoint (for imported tracks that need stream URLs when played)
+// 12. Lazy Resolution endpoint (finds stream without altering original title/artist)
 app.get('/api/resolve', async (req, res) => {
   const { title, artist } = req.query;
   if (!title) return res.status(400).json({ success: false });
 
   try {
+    const cleanT = cleanSearchQuery(title);
+    const cleanA = cleanSearchQuery(artist || '');
     const searchRes = await fetchSaavn('search.getResults', {
-      q: `${title} ${artist || ''}`,
+      q: `${cleanT} ${cleanA}`.trim(),
       p: 1,
-      n: 1
+      n: 3
     });
     const matched = (searchRes.results || []).map(formatTrack).filter(Boolean)[0];
     if (matched) {
-      return res.json({ success: true, track: matched });
+      return res.json({
+        success: true,
+        streams: matched.streams,
+        stream_url: matched.stream_url,
+        duration: matched.duration,
+        image: matched.image
+      });
     }
     res.json({ success: false });
   } catch (err) {
@@ -844,11 +900,22 @@ app.use((req, res) => {
 // ---------------------------------------------------------------------------
 // Server Startup
 // ---------------------------------------------------------------------------
-app.listen(PORT, '0.0.0.0', () => {
+const primaryServer = app.listen(PORT, '0.0.0.0', () => {
   console.log(`\n======================================================`);
   console.log(`🎵 Zylo Music Server is running!`);
   console.log(`Created by infas.mk`);
-  console.log(`Local Access:       http://localhost:${PORT}`);
+  console.log(`Local Access:       http://localhost:${PORT} or http://127.0.0.1:${PORT}`);
   console.log(`iOS / Wi-Fi Access: http://172.20.10.2:${PORT}`);
+  console.log(`Secondary Access:   http://localhost:3005`);
   console.log(`======================================================\n`);
 });
+
+primaryServer.on('error', (err) => {
+  console.error(`Port ${PORT} error:`, err.message);
+});
+
+// Also listen on 3005 so localhost won't collide with any IPv6 apps on port 3000
+const altServer = app.listen(3005, '0.0.0.0', () => {
+  console.log(`Zylo also active on http://localhost:3005`);
+});
+altServer.on('error', () => {});
