@@ -1592,7 +1592,7 @@ elements.createPlaylistBtn.addEventListener('click', () => {
       id: 'pl_' + Date.now(),
       name,
       type: 'user',
-      image: '/assets/BloomeeLogoFG.png',
+      image: '/assets/zylo_logo.png',
       tracks: []
     };
     state.playlists.unshift(newPl);
@@ -1619,7 +1619,7 @@ function openAddToPlaylistModal(track) {
         id: 'pl_' + Date.now(),
         name,
         type: 'user',
-        image: track.image || '/assets/BloomeeLogoFG.png',
+        image: track.image || '/assets/zylo_logo.png',
         tracks: [track]
       };
       state.playlists.unshift(newPl);

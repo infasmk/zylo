@@ -1,12 +1,11 @@
-const CACHE_NAME = 'bloomee-v1';
+const CACHE_NAME = 'zylo-v2';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
   '/styles.css',
   '/app.js',
   '/manifest.json',
-  '/assets/BloomeeLogoFG.png',
-  '/assets/BloomeeLogo4.png'
+  '/assets/zylo_logo.png'
 ];
 
 self.addEventListener('install', (event) => {
