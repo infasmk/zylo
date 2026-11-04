@@ -914,6 +914,10 @@ function navigateTo(viewName) {
   state.previousView = state.activeView;
   state.activeView = viewName;
 
+  if (elements.topHeader) {
+    elements.topHeader.classList.toggle('header-hidden', viewName !== 'home');
+  }
+
   Object.keys(elements.views).forEach(key => {
     elements.views[key].classList.toggle('active', key === viewName);
   });
@@ -1229,7 +1233,7 @@ async function loadDetailsView(type, id) {
   currentDetailsTracks = [];
 
   if (type === 'liked') {
-    elements.detailsCover.src = '/assets/BloomeeLogoFG.png';
+    elements.detailsCover.src = '/assets/zylo_logo.png';
     elements.detailsType.textContent = 'Favorites';
     elements.detailsTitle.textContent = 'Liked Songs';
     elements.detailsSubtitle.textContent = `${state.likedSongs.length} songs • Personal Collection`;
@@ -1240,7 +1244,7 @@ async function loadDetailsView(type, id) {
   }
 
   if (type === 'history') {
-    elements.detailsCover.src = '/assets/BloomeeLogoFG.png';
+    elements.detailsCover.src = '/assets/zylo_logo.png';
     elements.detailsType.textContent = 'History';
     elements.detailsTitle.textContent = 'Recently Played';
     elements.detailsSubtitle.textContent = `${state.history.length} songs`;
@@ -1253,7 +1257,7 @@ async function loadDetailsView(type, id) {
   if (type === 'user_playlist' || type === 'imported') {
     const pl = state.playlists.find(p => p.id === id);
     if (!pl) return;
-    elements.detailsCover.src = pl.image || '/assets/BloomeeLogoFG.png';
+    elements.detailsCover.src = pl.image || '/assets/zylo_logo.png';
     elements.detailsType.textContent = pl.type === 'imported' ? 'Imported Playlist' : 'Playlist';
     elements.detailsTitle.textContent = pl.name;
     elements.detailsSubtitle.textContent = `${pl.tracks.length} tracks`;
@@ -1324,9 +1328,22 @@ async function loadAndPlayPlaylist(id, title) {
 }
 
 // ---------------------------------------------------------------------------
-// Search & Suggestions
+// Search & Quick Tags (Unified Clean Search — No Double Layout)
 // ---------------------------------------------------------------------------
 let searchDebounceTimer = null;
+
+// Quick trending tags listener
+document.querySelectorAll('.quick-tag-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const q = btn.dataset.query;
+    elements.searchInput.value = q;
+    elements.searchClearBtn.classList.remove('hidden');
+    if (elements.quickTagsContainer) elements.quickTagsContainer.classList.add('hidden');
+    elements.searchEmptyState.classList.add('hidden');
+    elements.searchResultsLists.classList.remove('hidden');
+    executeSearch(q);
+  });
+});
 
 elements.searchInput.addEventListener('input', () => {
   const q = elements.searchInput.value.trim();
@@ -1334,78 +1351,60 @@ elements.searchInput.addEventListener('input', () => {
 
   clearTimeout(searchDebounceTimer);
   if (!q) {
-    elements.suggestionsDropdown.classList.add('hidden');
+    if (elements.quickTagsContainer) elements.quickTagsContainer.classList.remove('hidden');
     elements.searchEmptyState.classList.remove('hidden');
     elements.searchResultsLists.classList.add('hidden');
     return;
   }
 
+  if (elements.quickTagsContainer) elements.quickTagsContainer.classList.add('hidden');
+  elements.searchEmptyState.classList.add('hidden');
+  elements.searchResultsLists.classList.remove('hidden');
+
   searchDebounceTimer = setTimeout(() => {
-    fetchSuggestions(q);
     executeSearch(q);
-  }, 250);
+  }, 280);
 });
 
 elements.searchClearBtn.addEventListener('click', () => {
   elements.searchInput.value = '';
   elements.searchClearBtn.classList.add('hidden');
-  elements.suggestionsDropdown.classList.add('hidden');
+  if (elements.quickTagsContainer) elements.quickTagsContainer.classList.remove('hidden');
   elements.searchEmptyState.classList.remove('hidden');
   elements.searchResultsLists.classList.add('hidden');
   elements.searchInput.focus();
 });
 
-async function fetchSuggestions(query) {
-  try {
-    const res = await fetch(`/api/suggestions?q=${encodeURIComponent(query)}`);
-    const data = await res.json();
-    if (!data.success || !data.suggestions?.length) {
-      elements.suggestionsDropdown.classList.add('hidden');
-      return;
-    }
-
-    elements.suggestionsDropdown.innerHTML = '';
-    data.suggestions.slice(0, 6).forEach(item => {
-      const el = document.createElement('div');
-      el.className = 'suggestion-item';
-      el.innerHTML = `
-        <img class="suggestion-thumb" src="${item.image}" alt="">
-        <div class="suggestion-text">
-          <span class="suggestion-title">${item.title}</span>
-          <span class="suggestion-sub">${item.subtitle}</span>
-        </div>
-      `;
-      el.addEventListener('click', () => {
-        elements.suggestionsDropdown.classList.add('hidden');
-        elements.searchInput.value = item.title;
-        executeSearch(item.title);
-      });
-      elements.suggestionsDropdown.appendChild(el);
-    });
-
-    elements.suggestionsDropdown.classList.remove('hidden');
-  } catch (err) {
-    elements.suggestionsDropdown.classList.add('hidden');
-  }
-}
-
 async function executeSearch(query) {
+  if (!query) return;
   try {
+    elements.searchResultsLists.innerHTML = '<div class="lyrics-loading" style="padding:24px 0;text-align:center;">Searching Zylo...</div>';
     const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
     const data = await res.json();
     if (!data.success) return;
 
     elements.searchEmptyState.classList.add('hidden');
     elements.searchResultsLists.classList.remove('hidden');
-    renderSearchResults(data);
+    renderSearchResults(data, query);
   } catch (err) {
     console.error('Search error:', err);
   }
 }
 
-function renderSearchResults(data) {
+function renderSearchResults(data, query = '') {
   elements.searchResultsLists.innerHTML = '';
   const filter = state.searchFilter;
+
+  const hasAny = (data.songs?.length || data.albums?.length || data.playlists?.length || data.artists?.length);
+  if (!hasAny) {
+    elements.searchResultsLists.innerHTML = `
+      <div class="search-empty-state">
+        <h3>No results found</h3>
+        <p>Could not find matches for "${query}". Try searching another track or artist.</p>
+      </div>
+    `;
+    return;
+  }
 
   // Songs
   if ((filter === 'all' || filter === 'songs') && data.songs?.length) {
@@ -1520,7 +1519,7 @@ function updateLibraryUI() {
     card.className = 'library-item-card';
     card.innerHTML = `
       <div class="library-thumb-wrap">
-        <img src="${pl.image || '/assets/BloomeeLogoFG.png'}" alt="">
+        <img src="${pl.image || '/assets/zylo_logo.png'}" alt="" class="playlist-vector-img">
       </div>
       <div class="library-item-info">
         <div class="library-item-title">${pl.name}</div>
