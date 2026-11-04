@@ -165,6 +165,23 @@ const elements = {
   playerDownloadBtn: document.getElementById('player-download-btn'),
   playerAddPlaylistBtn: document.getElementById('player-add-playlist-btn'),
 
+  // Details Actions
+  detailsDownloadPlaylistBtn: document.getElementById('details-download-playlist-btn'),
+  detailsDownloadPlaylistText: document.getElementById('details-download-playlist-text'),
+  detailsEditPlaylistBtn: document.getElementById('details-edit-playlist-btn'),
+
+  // Edit Playlist Modal
+  editPlaylistModal: document.getElementById('edit-playlist-modal'),
+  editModalCloseBtn: document.getElementById('edit-modal-close-btn'),
+  editPlaylistNameInput: document.getElementById('edit-playlist-name-input'),
+  editTracksCount: document.getElementById('edit-tracks-count'),
+  editPlaylistTracksList: document.getElementById('edit-playlist-tracks-list'),
+  deletePlaylistBtn: document.getElementById('delete-playlist-btn'),
+  savePlaylistEditsBtn: document.getElementById('save-playlist-edits-btn'),
+
+  // Search Form
+  searchForm: document.getElementById('search-form'),
+
   // Sleep Timer Modal
   sleepTimerModal: document.getElementById('sleep-timer-modal'),
   sleepModalClose: document.getElementById('sleep-modal-close'),
@@ -194,14 +211,54 @@ const elements = {
   pwaDismissBtn: document.getElementById('pwa-dismiss-btn'),
   triggerPwaGuideBtn: document.getElementById('trigger-pwa-guide-btn'),
 
-  // Settings
-  settingQuality: document.getElementById('setting-quality'),
+  // Settings Drill-Down Navigation
+  settingsMainView: document.getElementById('settings-main-view'),
+  settingsSummaryQuality: document.getElementById('settings-summary-quality'),
+  settingsSummarySleep: document.getElementById('settings-summary-sleep'),
+  settingsSummaryStorage: document.getElementById('settings-summary-storage'),
+
+  settingsCardQuality: document.getElementById('settings-card-quality'),
+  settingsCardSleep: document.getElementById('settings-card-sleep'),
+  settingsCardStorage: document.getElementById('settings-card-storage'),
+  settingsCardImport: document.getElementById('settings-card-import'),
+  settingsCardInstall: document.getElementById('settings-card-install'),
+  settingsCardAbout: document.getElementById('settings-card-about'),
+
+  subpageQuality: document.getElementById('subpage-quality'),
+  subpageSleep: document.getElementById('subpage-sleep'),
+  subpageStorage: document.getElementById('subpage-storage'),
+  subpageImport: document.getElementById('subpage-import'),
+  subpageInstall: document.getElementById('subpage-install'),
+  subpageAbout: document.getElementById('subpage-about'),
+
+  backFromQuality: document.getElementById('back-from-quality'),
+  backFromSleep: document.getElementById('back-from-sleep'),
+  backFromStorage: document.getElementById('back-from-storage'),
+  backFromImport: document.getElementById('back-from-import'),
+  backFromInstall: document.getElementById('back-from-install'),
+  backFromAbout: document.getElementById('back-from-about'),
+
+  // Settings Controls
+  qualityRadioCards: document.querySelectorAll('#subpage-quality .radio-card'),
   settingAutoplay: document.getElementById('setting-autoplay'),
-  settingSleepTimer: document.getElementById('setting-sleep-timer'),
-  sleepTimerDesc: document.getElementById('sleep-timer-desc'),
-  settingsStorageUsed: document.getElementById('settings-storage-used'),
-  settingsViewDownloadsBtn: document.getElementById('settings-view-downloads-btn'),
-  settingsClearDownloadsBtn: document.getElementById('settings-clear-downloads-btn'),
+  sleepSubpageStatusText: document.getElementById('sleep-subpage-status-text'),
+  subpageTimerBtns: document.querySelectorAll('.subpage-timer-btn'),
+  cancelSleepTimerBtn: document.getElementById('cancel-sleep-timer-btn'),
+
+  subpageStorageCount: document.getElementById('subpage-storage-count'),
+  subpageStorageSize: document.getElementById('subpage-storage-size'),
+  subpageViewDownloadsBtn: document.getElementById('subpage-view-downloads-btn'),
+  subpageClearStorageBtn: document.getElementById('subpage-clear-storage-btn'),
+
+  subpageTabSpotify: document.getElementById('subpage-tab-spotify'),
+  subpageTabYoutube: document.getElementById('subpage-tab-youtube'),
+  subpageImportHint: document.getElementById('subpage-import-hint'),
+  subpageImportInput: document.getElementById('subpage-import-input'),
+  subpageImportSubmitBtn: document.getElementById('subpage-import-submit-btn'),
+  subpageImportStatus: document.getElementById('subpage-import-status'),
+  subpageImportStatusText: document.getElementById('subpage-import-status-text'),
+
+  subpageTriggerPwaBtn: document.getElementById('subpage-trigger-pwa-btn'),
 
   // Toast
   toast: document.getElementById('toast')
@@ -351,11 +408,12 @@ async function downloadTrack(track) {
     if (!streamUrl) {
       const res = await fetch(`/api/resolve?title=${encodeURIComponent(track.title)}&artist=${encodeURIComponent(track.artist || '')}`);
       const data = await res.json();
-      if (data.success && data.track) {
-        track.stream_url = data.track.stream_url;
-        track.streams = data.track.streams;
-        track.duration = data.track.duration || track.duration;
-        if (!track.image) track.image = data.track.image;
+      const resolved = data.track || data;
+      if (data.success && resolved.stream_url) {
+        track.stream_url = resolved.stream_url;
+        track.streams = resolved.streams;
+        track.duration = resolved.duration || track.duration;
+        if (!track.image) track.image = resolved.image;
         streamUrl = getStreamUrlForTrack(track);
       }
     }
@@ -455,6 +513,9 @@ async function updateDownloadBadges() {
   if (elements.downloadsPillCount) elements.downloadsPillCount.textContent = count;
   if (elements.downloadsCountText) elements.downloadsCountText.textContent = `${count} songs • ${totalMB} MB stored`;
   if (elements.settingsStorageUsed) elements.settingsStorageUsed.textContent = `${count} songs (${totalMB} MB)`;
+  if (elements.settingsSummaryStorage) elements.settingsSummaryStorage.textContent = `${count} songs (${totalMB} MB)`;
+  if (elements.subpageStorageCount) elements.subpageStorageCount.textContent = `${count} songs`;
+  if (elements.subpageStorageSize) elements.subpageStorageSize.textContent = `${totalMB} MB stored locally`;
 
   if (state.currentTrack && elements.playerDownloadBtn) {
     const isDl = await isTrackDownloaded(state.currentTrack.id);
@@ -513,11 +574,12 @@ async function playTrack(track, fromQueue = false) {
       try {
         const res = await fetch(`/api/resolve?title=${encodeURIComponent(track.title)}&artist=${encodeURIComponent(track.artist || '')}`);
         const data = await res.json();
-        if (data.success && data.track) {
-          track.stream_url = data.track.stream_url;
-          track.streams = data.track.streams;
-          track.duration = data.track.duration || track.duration;
-          if (!track.image) track.image = data.track.image;
+        const resolved = data.track || data;
+        if (data.success && resolved.stream_url) {
+          track.stream_url = resolved.stream_url;
+          track.streams = resolved.streams;
+          track.duration = resolved.duration || track.duration;
+          if (!track.image) track.image = resolved.image;
         }
       } catch (e) {
         console.error('Resolve error:', e);
@@ -724,9 +786,13 @@ function setSleepTimer(minutes) {
   if (minutes === -1) {
     // End of current track
     state.sleepTimerType = 'end_of_track';
-    elements.sleepBadgeMini.textContent = '1s';
-    elements.sleepBadgeMini.classList.remove('hidden');
-    elements.sleepTimerDesc.textContent = 'Stopping at end of current song';
+    if (elements.sleepBadgeMini) {
+      elements.sleepBadgeMini.textContent = '1s';
+      elements.sleepBadgeMini.classList.remove('hidden');
+    }
+    if (elements.sleepTimerDesc) elements.sleepTimerDesc.textContent = 'Stopping at end of current song';
+    if (elements.settingsSummarySleep) elements.settingsSummarySleep.textContent = 'End of current song';
+    if (elements.sleepSubpageStatusText) elements.sleepSubpageStatusText.textContent = 'Stopping at end of current song';
     showToast('Sleep timer: Stopping at end of song');
     return;
   }
@@ -735,9 +801,13 @@ function setSleepTimer(minutes) {
   state.sleepTimerMinutes = minutes;
   state.sleepTimerEndTimestamp = Date.now() + minutes * 60 * 1000;
 
-  elements.sleepBadgeMini.textContent = `${minutes}m`;
-  elements.sleepBadgeMini.classList.remove('hidden');
-  elements.sleepTimerDesc.textContent = `Stopping in ${minutes} minutes`;
+  if (elements.sleepBadgeMini) {
+    elements.sleepBadgeMini.textContent = `${minutes}m`;
+    elements.sleepBadgeMini.classList.remove('hidden');
+  }
+  if (elements.sleepTimerDesc) elements.sleepTimerDesc.textContent = `Stopping in ${minutes} minutes`;
+  if (elements.settingsSummarySleep) elements.settingsSummarySleep.textContent = `${minutes}m`;
+  if (elements.sleepSubpageStatusText) elements.sleepSubpageStatusText.textContent = `Stopping in ${minutes} minutes`;
 
   state.sleepTimerInterval = setInterval(() => {
     const leftMs = state.sleepTimerEndTimestamp - Date.now();
@@ -749,7 +819,9 @@ function setSleepTimer(minutes) {
       showToast('Sleep timer expired. Music paused.');
     } else {
       const leftMins = Math.ceil(leftMs / (60 * 1000));
-      elements.sleepBadgeMini.textContent = `${leftMins}m`;
+      if (elements.sleepBadgeMini) elements.sleepBadgeMini.textContent = `${leftMins}m`;
+      if (elements.settingsSummarySleep) elements.settingsSummarySleep.textContent = `${leftMins}m`;
+      if (elements.sleepSubpageStatusText) elements.sleepSubpageStatusText.textContent = `Stopping in ${leftMins} minutes`;
     }
   }, 10000);
 
@@ -761,9 +833,11 @@ function clearSleepTimer() {
   clearTimeout(state.sleepTimerTimeout);
   state.sleepTimerType = 'off';
   state.sleepTimerMinutes = 0;
-  elements.sleepBadgeMini.classList.add('hidden');
-  elements.sleepTimerDesc.textContent = 'Off';
-  elements.settingSleepTimer.value = '0';
+  if (elements.sleepBadgeMini) elements.sleepBadgeMini.classList.add('hidden');
+  if (elements.sleepTimerDesc) elements.sleepTimerDesc.textContent = 'Off';
+  if (elements.settingsSummarySleep) elements.settingsSummarySleep.textContent = 'Off';
+  if (elements.sleepSubpageStatusText) elements.sleepSubpageStatusText.textContent = 'Sleep Timer is Off';
+  if (elements.settingSleepTimer) elements.settingSleepTimer.value = '0';
 }
 
 // Sleep timer modal triggers

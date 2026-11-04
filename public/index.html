@@ -144,14 +144,16 @@
         </div>
 
         <div class="search-header-box">
-          <div class="search-input-bar">
-            <svg class="search-bar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="11" cy="11" r="8"></circle>
-              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-            </svg>
-            <input type="text" id="search-input" placeholder="Search exact song, artist, album..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
-            <button id="search-clear-btn" class="search-clear hidden" aria-label="Clear Search">✕</button>
-          </div>
+          <form id="search-form" class="search-form" onsubmit="event.preventDefault();" action="#">
+            <div class="search-input-bar">
+              <svg class="search-bar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+              </svg>
+              <input type="search" id="search-input" placeholder="Search exact song, artist, album..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="search">
+              <button type="button" id="search-clear-btn" class="search-clear hidden" aria-label="Clear Search">✕</button>
+            </div>
+          </form>
         </div>
 
         <!-- Filter Chips -->
@@ -269,38 +271,153 @@
       </section>
 
       <!-- ================================================================== -->
-      <!-- 4. SETTINGS SCREEN (Clean Minimalist Cards) -->
+      <!-- 4. SETTINGS SCREEN (Clean Drill-Down iOS Design) -->
       <!-- ================================================================== -->
       <section id="view-settings" class="app-view">
-        <div class="settings-header">
-          <h1 class="page-title">Settings</h1>
-          <span class="settings-subtitle">Preferences, Audio & Storage</span>
+        
+        <!-- Main Settings Home List -->
+        <div id="settings-main-view">
+          <div class="settings-header">
+            <h1 class="page-title">Settings</h1>
+            <span class="settings-subtitle">Preferences, Audio & Storage</span>
+          </div>
+
+          <div class="settings-nav-cards">
+            
+            <!-- Card 1: Audio Quality -->
+            <button class="settings-nav-card" id="settings-card-quality" type="button">
+              <div class="settings-card-left">
+                <div class="card-icon-wrap lime">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 18v-6a9 9 0 0 1 18 0v6"></path><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"></path></svg>
+                </div>
+                <div class="card-title-group">
+                  <h3>Audio Quality & Playback</h3>
+                  <span id="settings-summary-quality">320 kbps (Lossless AAC)</span>
+                </div>
+              </div>
+              <svg class="chevron-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg>
+            </button>
+
+            <!-- Card 2: Sleep Timer -->
+            <button class="settings-nav-card" id="settings-card-sleep" type="button">
+              <div class="settings-card-left">
+                <div class="card-icon-wrap">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+                </div>
+                <div class="card-title-group">
+                  <h3>Sleep Timer</h3>
+                  <span id="settings-summary-sleep">Off</span>
+                </div>
+              </div>
+              <svg class="chevron-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg>
+            </button>
+
+            <!-- Card 3: Offline Storage -->
+            <button class="settings-nav-card" id="settings-card-storage" type="button">
+              <div class="settings-card-left">
+                <div class="card-icon-wrap">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                </div>
+                <div class="card-title-group">
+                  <h3>Offline Downloads & Storage</h3>
+                  <span id="settings-summary-storage">0 songs stored</span>
+                </div>
+              </div>
+              <svg class="chevron-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg>
+            </button>
+
+            <!-- Card 4: Import Music -->
+            <button class="settings-nav-card" id="settings-card-import" type="button">
+              <div class="settings-card-left">
+                <div class="card-icon-wrap">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg>
+                </div>
+                <div class="card-title-group">
+                  <h3>Import Playlists</h3>
+                  <span>Spotify & YouTube</span>
+                </div>
+              </div>
+              <svg class="chevron-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg>
+            </button>
+
+            <!-- Card 5: Install App -->
+            <button class="settings-nav-card" id="settings-card-install" type="button">
+              <div class="settings-card-left">
+                <div class="card-icon-wrap">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect><line x1="12" y1="18" x2="12.01" y2="18"></line></svg>
+                </div>
+                <div class="card-title-group">
+                  <h3>Install App (PWA)</h3>
+                  <span>Home Screen experience</span>
+                </div>
+              </div>
+              <svg class="chevron-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg>
+            </button>
+
+            <!-- Card 6: About Zylo -->
+            <button class="settings-nav-card" id="settings-card-about" type="button">
+              <div class="settings-card-left">
+                <div class="card-icon-wrap lime">
+                  <img src="/assets/zylo_logo.png" alt="" class="card-mini-logo">
+                </div>
+                <div class="card-title-group">
+                  <h3>About Zylo</h3>
+                  <span>v3.2.0 • Created by infas.mk</span>
+                </div>
+              </div>
+              <svg class="chevron-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg>
+            </button>
+
+          </div>
         </div>
 
-        <div class="settings-cards-grid">
-          
-          <!-- Card 1: Audio Quality & Playback -->
-          <div class="clean-card">
-            <div class="clean-card-header">
-              <div class="card-icon-wrap lime">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 18v-6a9 9 0 0 1 18 0v6"></path><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"></path></svg>
+        <!-- ============================================================== -->
+        <!-- SUB-PAGE 1: AUDIO QUALITY & STREAMING -->
+        <!-- ============================================================== -->
+        <div id="subpage-quality" class="settings-subpage hidden">
+          <div class="subpage-top-bar">
+            <button class="settings-back-btn" id="back-from-quality" type="button">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"></polyline></svg>
+              <span>Settings</span>
+            </button>
+            <h2 class="subpage-title">Audio Quality</h2>
+          </div>
+
+          <div class="subpage-content">
+            <p class="subpage-desc">Choose your preferred streaming and playback fidelity. Higher bitrates provide studio-grade clarity.</p>
+
+            <div class="radio-card-group">
+              <div class="radio-card" data-quality="320">
+                <div class="radio-card-info">
+                  <span class="radio-card-title">320 kbps (Lossless AAC)</span>
+                  <span class="radio-card-desc">Lossless studio quality. Highest detail and dynamic range.</span>
+                </div>
+                <div class="radio-indicator"></div>
               </div>
-              <div class="card-title-group">
-                <h3>Audio Quality</h3>
-                <span>Bitrate & streaming quality</span>
+
+              <div class="radio-card" data-quality="160">
+                <div class="radio-card-info">
+                  <span class="radio-card-title">160 kbps (Balanced)</span>
+                  <span class="radio-card-desc">Balanced fidelity with moderate data consumption.</span>
+                </div>
+                <div class="radio-indicator"></div>
+              </div>
+
+              <div class="radio-card" data-quality="96">
+                <div class="radio-card-info">
+                  <span class="radio-card-title">96 kbps (Data Saver)</span>
+                  <span class="radio-card-desc">Ultra-light streaming for lower connectivity.</span>
+                </div>
+                <div class="radio-indicator"></div>
               </div>
             </div>
-            <div class="clean-card-content">
-              <div class="setting-row">
-                <span>Streaming Bitrate</span>
-                <select id="setting-quality" class="settings-select">
-                  <option value="320">320 kbps (Lossless AAC)</option>
-                  <option value="160">160 kbps (Balanced)</option>
-                  <option value="96">96 kbps (Data Saver)</option>
-                </select>
-              </div>
-              <div class="setting-row">
-                <span>Autoplay Related</span>
+
+            <div class="subpage-card mt-16">
+              <div class="subpage-setting-row">
+                <div>
+                  <span class="subpage-row-title">Autoplay Related Music</span>
+                  <p class="subpage-row-desc">Automatically keep playing music when your current queue ends.</p>
+                </div>
                 <label class="switch">
                   <input type="checkbox" id="setting-autoplay" checked>
                   <span class="slider"></span>
@@ -308,104 +425,192 @@
               </div>
             </div>
           </div>
+        </div>
 
-          <!-- Card 2: Sleep Timer -->
-          <div class="clean-card">
-            <div class="clean-card-header">
-              <div class="card-icon-wrap">
+        <!-- ============================================================== -->
+        <!-- SUB-PAGE 2: SLEEP TIMER -->
+        <!-- ============================================================== -->
+        <div id="subpage-sleep" class="settings-subpage hidden">
+          <div class="subpage-top-bar">
+            <button class="settings-back-btn" id="back-from-sleep" type="button">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"></polyline></svg>
+              <span>Settings</span>
+            </button>
+            <h2 class="subpage-title">Sleep Timer</h2>
+          </div>
+
+          <div class="subpage-content">
+            <div class="sleep-status-hero">
+              <div class="sleep-hero-icon">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
               </div>
-              <div class="card-title-group">
-                <h3>Sleep Timer</h3>
-                <span>Auto-stop music playback</span>
-              </div>
+              <h3 id="sleep-subpage-status-text">Sleep Timer is Off</h3>
+              <p class="subpage-desc">Music will automatically pause and stop playback after the chosen duration.</p>
             </div>
-            <div class="clean-card-content">
-              <div class="setting-row">
-                <span>Timer Duration</span>
-                <select id="setting-sleep-timer" class="settings-select">
-                  <option value="0">Off</option>
-                  <option value="15">15 Minutes</option>
-                  <option value="30">30 Minutes</option>
-                  <option value="45">45 Minutes</option>
-                  <option value="60">60 Minutes</option>
-                </select>
-              </div>
-            </div>
-          </div>
 
-          <!-- Card 3: Offline Downloads & Storage -->
-          <div class="clean-card">
-            <div class="clean-card-header">
-              <div class="card-icon-wrap">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-              </div>
-              <div class="card-title-group">
-                <h3>Offline Downloads</h3>
-                <span id="settings-storage-used">0 songs stored</span>
-              </div>
+            <div class="quick-timer-grid">
+              <button class="subpage-timer-btn" data-minutes="15">15 min</button>
+              <button class="subpage-timer-btn" data-minutes="30">30 min</button>
+              <button class="subpage-timer-btn" data-minutes="45">45 min</button>
+              <button class="subpage-timer-btn" data-minutes="60">1 hour</button>
+              <button class="subpage-timer-btn full-span" data-minutes="-1">End of current track</button>
             </div>
-            <div class="clean-card-content">
-              <div class="setting-row-action">
-                <button class="secondary-btn small" id="settings-view-downloads-btn">View Downloads</button>
-                <button class="text-dismiss-btn" id="settings-clear-downloads-btn">Clear Storage</button>
-              </div>
-            </div>
-          </div>
 
-          <!-- Card 4: Import Playlists -->
-          <div class="clean-card">
-            <div class="clean-card-header">
-              <div class="card-icon-wrap">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg>
-              </div>
-              <div class="card-title-group">
-                <h3>Import Music</h3>
-                <span>Spotify & YouTube playlists</span>
-              </div>
-            </div>
-            <div class="clean-card-content">
-              <div class="setting-row-action">
-                <button class="action-icon-pill lime" id="settings-open-import-btn">
-                  <span>Import Playlist</span>
-                </button>
-              </div>
-            </div>
+            <button class="text-dismiss-btn danger full mt-16" id="cancel-sleep-timer-btn">Turn Off Timer</button>
           </div>
-
-          <!-- Card 5: Install App (PWA) -->
-          <div class="clean-card">
-            <div class="clean-card-header">
-              <div class="card-icon-wrap">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect><line x1="12" y1="18" x2="12.01" y2="18"></line></svg>
-              </div>
-              <div class="card-title-group">
-                <h3>Install App</h3>
-                <span>iOS Safari & Desktop PWA</span>
-              </div>
-            </div>
-            <div class="clean-card-content">
-              <div class="setting-row-action">
-                <button class="primary-lime-btn small" id="trigger-pwa-guide-btn">Install / Guide</button>
-              </div>
-            </div>
-          </div>
-
-          <!-- Card 6: About Zylo -->
-          <div class="clean-card about-zylo-card">
-            <div class="about-brand-wrap">
-              <div class="about-logo-box">
-                <img src="/assets/zylo_logo.png" alt="Zylo Logo" class="about-logo-3d">
-              </div>
-              <div>
-                <h3>Zylo Music</h3>
-                <span class="about-credit-badge">Created by infas.mk</span>
-                <p class="about-version">v3.2.0 • Lossless 320 kbps</p>
-              </div>
-            </div>
-          </div>
-
         </div>
+
+        <!-- ============================================================== -->
+        <!-- SUB-PAGE 3: OFFLINE STORAGE & DOWNLOADS -->
+        <!-- ============================================================== -->
+        <div id="subpage-storage" class="settings-subpage hidden">
+          <div class="subpage-top-bar">
+            <button class="settings-back-btn" id="back-from-storage" type="button">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"></polyline></svg>
+              <span>Settings</span>
+            </button>
+            <h2 class="subpage-title">Offline Downloads</h2>
+          </div>
+
+          <div class="subpage-content">
+            <div class="storage-stats-card">
+              <div class="storage-stats-left">
+                <h3 id="subpage-storage-count">0 songs</h3>
+                <span id="subpage-storage-size">0.0 MB stored locally</span>
+              </div>
+              <div class="storage-badge-pill">IndexedDB Safe</div>
+            </div>
+
+            <p class="subpage-desc mt-12">All downloaded songs and artwork are saved directly into your device browser storage, allowing full playback even with no internet connection.</p>
+
+            <div class="subpage-card-actions mt-16">
+              <button class="primary-lime-btn full" id="subpage-view-downloads-btn">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                <span>View Downloaded Music</span>
+              </button>
+              <button class="text-dismiss-btn danger full mt-8" id="subpage-clear-storage-btn">Clear All Offline Downloads</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- ============================================================== -->
+        <!-- SUB-PAGE 4: PLAYLIST IMPORTER -->
+        <!-- ============================================================== -->
+        <div id="subpage-import" class="settings-subpage hidden">
+          <div class="subpage-top-bar">
+            <button class="settings-back-btn" id="back-from-import" type="button">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"></polyline></svg>
+              <span>Settings</span>
+            </button>
+            <h2 class="subpage-title">Import Playlists</h2>
+          </div>
+
+          <div class="subpage-content">
+            <p class="subpage-desc">Bring your personal playlists from Spotify or YouTube into Zylo instantly.</p>
+
+            <div class="import-source-tabs mt-16">
+              <button class="import-tab-btn active" id="subpage-tab-spotify">Spotify</button>
+              <button class="import-tab-btn" id="subpage-tab-youtube">YouTube / YT Music</button>
+            </div>
+
+            <div class="subpage-card mt-16">
+              <label class="edit-label" id="subpage-import-hint">Paste Spotify Playlist or Album URL:</label>
+              <input type="text" id="subpage-import-input" class="modal-input" placeholder="https://open.spotify.com/playlist/...">
+              <button class="primary-lime-btn full mt-12" id="subpage-import-submit-btn">Import Playlist</button>
+            </div>
+
+            <div id="subpage-import-status" class="import-status-box hidden mt-12">
+              <div class="loading-spinner"></div>
+              <span id="subpage-import-status-text">Importing...</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- ============================================================== -->
+        <!-- SUB-PAGE 5: INSTALL APP (PWA) -->
+        <!-- ============================================================== -->
+        <div id="subpage-install" class="settings-subpage hidden">
+          <div class="subpage-top-bar">
+            <button class="settings-back-btn" id="back-from-install" type="button">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"></polyline></svg>
+              <span>Settings</span>
+            </button>
+            <h2 class="subpage-title">Install Zylo</h2>
+          </div>
+
+          <div class="subpage-content">
+            <div class="install-guide-card">
+              <div class="install-device-badge">iOS Safari (iPhone / iPad)</div>
+              <ol class="install-steps-list">
+                <li>Tap the <strong>Share</strong> button <span class="share-icon-glyph">⎋</span> at the bottom of Safari.</li>
+                <li>Scroll down and tap <strong>Add to Home Screen</strong>.</li>
+                <li>Tap <strong>Add</strong> in the top right corner.</li>
+              </ol>
+            </div>
+
+            <div class="install-guide-card mt-16">
+              <div class="install-device-badge">Android / Chrome / Desktop</div>
+              <ol class="install-steps-list">
+                <li>Tap the <strong>Menu (⋮)</strong> or install icon in address bar.</li>
+                <li>Select <strong>Install app</strong> or <strong>Add to Home screen</strong>.</li>
+              </ol>
+              <button class="primary-lime-btn full mt-12" id="subpage-trigger-pwa-btn">Install App Now</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- ============================================================== -->
+        <!-- SUB-PAGE 6: ABOUT ZYLO (FULL PAGE EXPERIENCE) -->
+        <!-- ============================================================== -->
+        <div id="subpage-about" class="settings-subpage hidden">
+          <div class="subpage-top-bar">
+            <button class="settings-back-btn" id="back-from-about" type="button">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"></polyline></svg>
+              <span>Settings</span>
+            </button>
+            <h2 class="subpage-title">About Zylo</h2>
+          </div>
+
+          <div class="about-full-page">
+            <div class="about-hero-center">
+              <div class="about-hero-logo-box">
+                <img src="/assets/zylo_logo.png" alt="Zylo Logo" class="about-full-logo">
+              </div>
+              <h1 class="about-full-title">Zylo</h1>
+              <p class="about-full-creator">Created by infas.mk</p>
+              <span class="about-version-tag">Version 3.2.0 (Liquid Glass Edition)</span>
+            </div>
+
+            <div class="about-story-card">
+              <h3>Next-Generation Music Streaming</h3>
+              <p>Zylo combines the fluid minimalism of Apple Music with dark aesthetics, liquid glass specular highlights, and studio 320 kbps fidelity. Designed mobile-first for iOS Safari and PWA offline listening.</p>
+            </div>
+
+            <div class="about-specs-grid">
+              <div class="about-spec-item">
+                <span class="spec-label">Audio Engine</span>
+                <span class="spec-val">Lossless 320 kbps AAC</span>
+              </div>
+              <div class="about-spec-item">
+                <span class="spec-label">Offline Storage</span>
+                <span class="spec-val">Binary Blob IndexedDB</span>
+              </div>
+              <div class="about-spec-item">
+                <span class="spec-label">Lyrics</span>
+                <span class="spec-val">Real-time LRC Sync</span>
+              </div>
+              <div class="about-spec-item">
+                <span class="spec-label">Lockscreen</span>
+                <span class="spec-val">MediaSession API</span>
+              </div>
+            </div>
+
+            <div class="about-footer-credits">
+              <p>© 2026 Zylo Music. Designed & Crafted with ❤️ by infas.mk</p>
+            </div>
+          </div>
+        </div>
+
       </section>
 
       <!-- ================================================================== -->
@@ -437,6 +642,14 @@
               <button class="secondary-btn" id="details-shuffle-all" title="Shuffle Play">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 3 21 3 21 8"></polyline><line x1="4" y1="20" x2="21" y2="3"></line><polyline points="21 16 21 21 16 21"></polyline><line x1="15" y1="15" x2="21" y2="21"></line><line x1="4" y1="4" x2="9" y2="9"></line></svg>
                 <span>Shuffle</span>
+              </button>
+              <button class="secondary-btn" id="details-download-playlist-btn" title="Download Playlist for Offline">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                <span id="details-download-playlist-text">Download</span>
+              </button>
+              <button class="secondary-btn hidden" id="details-edit-playlist-btn" title="Edit Playlist">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                <span>Edit</span>
               </button>
             </div>
           </div>
@@ -760,6 +973,36 @@
       <div class="pwa-actions">
         <button class="primary-lime-btn full" id="pwa-confirm-btn">Got it / Install</button>
         <button class="text-dismiss-btn" id="pwa-dismiss-btn">Maybe Later</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================================================================== -->
+  <!-- EDIT PLAYLIST MODAL -->
+  <!-- ================================================================== -->
+  <div id="edit-playlist-modal" class="modal-overlay hidden">
+    <div class="modal-card edit-playlist-card">
+      <div class="modal-header">
+        <h3>Edit Playlist</h3>
+        <button class="modal-close-btn" id="edit-modal-close-btn">✕</button>
+      </div>
+      <div class="modal-body">
+        <label class="edit-label">Playlist Name</label>
+        <input type="text" id="edit-playlist-name-input" class="modal-input" placeholder="Playlist Name" maxlength="50">
+        
+        <div class="edit-tracks-header mt-12">
+          <span class="edit-label">Tracks in Playlist</span>
+          <span id="edit-tracks-count" class="edit-count-badge">0 tracks</span>
+        </div>
+        
+        <div id="edit-playlist-tracks-list" class="edit-playlist-tracks-list">
+          <!-- Dynamic editable tracks list -->
+        </div>
+
+        <div class="edit-modal-actions mt-16">
+          <button class="text-dismiss-btn danger" id="delete-playlist-btn">Delete Playlist</button>
+          <button class="primary-lime-btn" id="save-playlist-edits-btn">Save Changes</button>
+        </div>
       </div>
     </div>
   </div>

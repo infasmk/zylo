@@ -129,7 +129,8 @@ async function fetchSaavn(call, params = {}) {
   const res = await fetch(url, {
     headers: {
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      'Accept': 'application/json'
+      'Accept': 'application/json',
+      'cookie': 'L=english%2Chindi%2Cmalayalam%2Ctamil%2Ctelugu%2Cpunjabi%2Ckannada%2Cbhojpuri%2Cbengali%2Cmarathi%2Cgujarati; gdpr_acceptance=true; DL=english'
     }
   });
   const text = await res.text();
@@ -287,18 +288,37 @@ app.get('/api/search', async (req, res) => {
   const query = rawQuery.trim();
   const cleaned = cleanSearchQuery(query);
 
+  let songPart = '';
+  let artistPart = '';
+  if (/\s+by\s+/i.test(query)) {
+    const parts = query.split(/\s+by\s+/i);
+    songPart = cleanSearchQuery(parts[0] || '');
+    artistPart = cleanSearchQuery(parts[1] || '');
+  }
+
   try {
-    const [songData, acData, albumData, playlistData, artistData] = await Promise.all([
+    const fetchPromises = [
       fetchSaavn('search.getResults', { q: query, p: page, n: limit }).catch(() => ({})),
       fetchSaavn('autocomplete.get', { query: query }).catch(() => ({})),
       fetchSaavn('search.getAlbumResults', { q: query, p: 1, n: 8 }).catch(() => ({})),
       fetchSaavn('search.getPlaylistResults', { q: query, p: 1, n: 8 }).catch(() => ({})),
       fetchSaavn('search.getArtistResults', { q: query, p: 1, n: 8 }).catch(() => ({}))
-    ]);
+    ];
+
+    if (songPart) {
+      fetchPromises.push(fetchSaavn('search.getResults', { q: songPart, p: 1, n: 15 }).catch(() => ({})));
+      fetchPromises.push(fetchSaavn('autocomplete.get', { query: songPart }).catch(() => ({})));
+    }
+
+    const [songData, acData, albumData, playlistData, artistData, songPartData, songPartAcData] = await Promise.all(fetchPromises);
 
     // Exact matches from autocomplete (JioSaavn exact title matcher)
     let exactAcSongs = [];
-    const acPids = (acData.songs?.data || []).slice(0, 6).map(s => s.id).filter(Boolean);
+    const rawAcList = [
+      ...(acData?.songs?.data || []),
+      ...(songPartAcData?.songs?.data || [])
+    ];
+    const acPids = rawAcList.slice(0, 8).map(s => s.id).filter(Boolean);
     if (acPids.length > 0) {
       try {
         const detailsData = await fetchSaavn('song.getDetails', { pids: acPids.join(',') });
@@ -308,7 +328,10 @@ app.get('/api/search', async (req, res) => {
     }
 
     // Main search results
-    const mainSongs = (songData.results || []).map(formatTrack).filter(Boolean);
+    const mainSongs = [
+      ...(songData.results || []).map(formatTrack).filter(Boolean),
+      ...(songPartData?.results || []).map(formatTrack).filter(Boolean)
+    ];
 
     // If query has extra terms and results are low, fallback with cleaned query
     let fallbackSongs = [];
@@ -606,19 +629,31 @@ app.post('/api/import/spotify', async (req, res) => {
       duration: Math.round((t.duration || 0) / 1000)
     })).filter(t => t.title);
 
-    // Auto-match top 15 tracks into playable streams immediately WITHOUT changing original titles/artists!
+    // Auto-match top 30 tracks into playable streams immediately WITHOUT changing original titles/artists!
     const resolvedTracks = [];
-    for (let i = 0; i < Math.min(extractedTracks.length, 15); i++) {
+    const eagerCount = Math.min(extractedTracks.length, 30);
+    for (let i = 0; i < eagerCount; i++) {
       const item = extractedTracks[i];
       try {
         const cleanT = cleanSearchQuery(item.title);
         const cleanA = cleanSearchQuery(item.artist);
-        const searchRes = await fetchSaavn('search.getResults', {
+        let searchRes = await fetchSaavn('search.getResults', {
           q: `${cleanT} ${cleanA}`.trim(),
           p: 1,
-          n: 1
-        });
-        const matched = (searchRes.results || []).map(formatTrack).filter(Boolean)[0];
+          n: 2
+        }).catch(() => ({}));
+        let matched = (searchRes.results || []).map(formatTrack).filter(Boolean)[0];
+
+        if (!matched && cleanT) {
+          const acData = await fetchSaavn('autocomplete.get', { query: cleanT }).catch(() => ({}));
+          const pids = (acData.songs?.data || []).slice(0, 2).map(s => s.id).filter(Boolean);
+          if (pids.length > 0) {
+            const detailsData = await fetchSaavn('song.getDetails', { pids: pids.join(',') }).catch(() => ({}));
+            const songsList = detailsData.songs || Object.values(detailsData).filter(x => x && x.id);
+            matched = songsList.map(formatTrack).filter(Boolean)[0];
+          }
+        }
+
         resolvedTracks.push({
           id: matched ? matched.id : `sp_${Date.now()}_${i}`,
           title: item.title, // PRESERVE EXACT ORIGINAL TITLE
@@ -643,7 +678,7 @@ app.post('/api/import/spotify', async (req, res) => {
     }
 
     // Add remaining tracks (will be resolved lazily when played)
-    for (let i = 15; i < extractedTracks.length; i++) {
+    for (let i = eagerCount; i < extractedTracks.length; i++) {
       const item = extractedTracks[i];
       resolvedTracks.push({
         id: `sp_${Date.now()}_${i}`,
@@ -799,7 +834,7 @@ app.post('/api/import/youtube', async (req, res) => {
   }
 });
 
-// 12. Lazy Resolution endpoint (finds stream without altering original title/artist)
+// 12. Robust Lazy Resolution endpoint (finds stream without altering original title/artist)
 app.get('/api/resolve', async (req, res) => {
   const { title, artist } = req.query;
   if (!title) return res.status(400).json({ success: false });
@@ -807,15 +842,45 @@ app.get('/api/resolve', async (req, res) => {
   try {
     const cleanT = cleanSearchQuery(title);
     const cleanA = cleanSearchQuery(artist || '');
-    const searchRes = await fetchSaavn('search.getResults', {
+
+    // Tier 1: Search title + artist
+    let searchRes = await fetchSaavn('search.getResults', {
       q: `${cleanT} ${cleanA}`.trim(),
       p: 1,
-      n: 3
-    });
-    const matched = (searchRes.results || []).map(formatTrack).filter(Boolean)[0];
+      n: 5
+    }).catch(() => ({}));
+    let matched = (searchRes.results || []).map(formatTrack).filter(Boolean)[0];
+
+    // Tier 2: Autocomplete on title
+    if (!matched && cleanT) {
+      const acData = await fetchSaavn('autocomplete.get', { query: cleanT }).catch(() => ({}));
+      const pids = (acData.songs?.data || []).slice(0, 3).map(s => s.id).filter(Boolean);
+      if (pids.length > 0) {
+        const detailsData = await fetchSaavn('song.getDetails', { pids: pids.join(',') }).catch(() => ({}));
+        const songsList = detailsData.songs || Object.values(detailsData).filter(x => x && x.id);
+        matched = songsList.map(formatTrack).filter(Boolean)[0];
+      }
+    }
+
+    // Tier 3: Search title only
+    if (!matched && cleanT) {
+      searchRes = await fetchSaavn('search.getResults', {
+        q: cleanT,
+        p: 1,
+        n: 5
+      }).catch(() => ({}));
+      matched = (searchRes.results || []).map(formatTrack).filter(Boolean)[0];
+    }
+
     if (matched) {
       return res.json({
         success: true,
+        track: {
+          streams: matched.streams,
+          stream_url: matched.stream_url,
+          duration: matched.duration,
+          image: matched.image
+        },
         streams: matched.streams,
         stream_url: matched.stream_url,
         duration: matched.duration,
