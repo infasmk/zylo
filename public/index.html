@@ -3,21 +3,21 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>BloomeeTunes - Open Source Free Music</title>
+  <title>Zylo — Premium Music Streaming</title>
   
   <!-- iOS PWA & Mobile Web App Meta -->
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="Bloomee">
-  <meta name="theme-color" content="#0b0f19">
-  <meta name="description" content="BloomeeTunes web music player with free streaming, high quality audio, synced lyrics, and offline library.">
+  <meta name="apple-mobile-web-app-title" content="Zylo">
+  <meta name="theme-color" content="#09090F">
+  <meta name="description" content="Zylo Music — Premium Dark Music Streaming Experience. Created by infas.mk.">
 
   <!-- Icons -->
   <link rel="icon" type="image/png" href="/assets/BloomeeLogoFG.png">
   <link rel="apple-touch-icon" href="/assets/BloomeeLogoFG.png">
   <link rel="manifest" href="/manifest.json">
 
-  <!-- Fonts & Icons -->
+  <!-- Fonts & Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -31,32 +31,40 @@
   <!-- App Shell Container -->
   <div class="app-container">
     
-    <!-- Top Header -->
-    <header class="top-header">
-      <div class="header-brand" id="brand-home-btn">
-        <div class="brand-logo-wrap">
-          <img src="/assets/BloomeeLogoFG.png" alt="Bloomee" class="brand-logo">
+    <!-- Top Header (Home / Explore) -->
+    <header class="top-header" id="top-header">
+      <div class="header-profile" id="header-profile-btn">
+        <div class="profile-avatar">
+          <span>IM</span>
         </div>
-        <div class="brand-title">
-          <span class="brand-name">Bloomee</span>
-          <span class="brand-badge">Web</span>
+        <div class="profile-greeting">
+          <span class="greeting-title">Hi, infas</span>
+          <span class="greeting-subtitle">Created by infas.mk</span>
         </div>
-      </div>
-
-      <div class="header-search-wrap" id="header-search-trigger">
-        <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="11" cy="11" r="8"></circle>
-          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-        </svg>
-        <span class="search-placeholder">Search songs, albums, artists...</span>
-        <span class="search-shortcut">⌘K</span>
       </div>
 
       <div class="header-actions">
-        <button class="icon-btn" id="header-settings-btn" title="Settings" aria-label="Settings">
+        <!-- Quick Import Button -->
+        <button class="header-icon-btn" id="header-import-btn" title="Import from Spotify or YouTube" aria-label="Import">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="3"></circle>
-            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+          </svg>
+        </button>
+
+        <!-- Search Button -->
+        <button class="header-icon-btn" id="header-search-btn" title="Search" aria-label="Search">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+        </button>
+
+        <!-- Favorites / Heart Button -->
+        <button class="header-icon-btn" id="header-favorites-btn" title="Liked Songs" aria-label="Favorites">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"></path>
           </svg>
         </button>
       </div>
@@ -65,82 +73,80 @@
     <!-- Main Scrollable Views -->
     <main class="main-content" id="main-content">
       
-      <!-- 1. EXPLORE SCREEN -->
-      <section id="view-explore" class="app-view active">
-        <!-- iOS PWA Banner (Shown if not standalone on iOS) -->
-        <div id="ios-install-banner" class="ios-banner hidden">
-          <div class="ios-banner-icon">
-            <img src="/assets/BloomeeLogoFG.png" alt="Bloomee">
-          </div>
-          <div class="ios-banner-text">
-            <strong>Install Bloomee on your iPhone</strong>
-            <span>Tap <svg class="inline-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path><polyline points="16 6 12 2 8 6"></polyline><line x1="12" y1="2" x2="12" y2="15"></line></svg> Share & select <b>Add to Home Screen</b></span>
-          </div>
-          <button class="ios-banner-close" id="ios-banner-close" aria-label="Close">✕</button>
-        </div>
-
-        <!-- Featured Carousel -->
-        <div class="section-block">
-          <div class="carousel-container" id="explore-carousel">
-            <!-- Carousel items dynamically loaded -->
+      <!-- ================================================================== -->
+      <!-- 1. HOME SCREEN (Reference Screen 1) -->
+      <!-- ================================================================== -->
+      <section id="view-home" class="app-view active">
+        
+        <!-- Category Navigation Tabs (Pill Tabs) -->
+        <div class="category-tabs-wrap">
+          <div class="category-tabs" id="home-category-tabs">
+            <button class="category-pill active" data-category="all">All</button>
+            <button class="category-pill" data-category="new">New Releases</button>
+            <button class="category-pill" data-category="trending">Trending</button>
+            <button class="category-pill" data-category="charts">Top Charts</button>
+            <button class="category-pill" data-category="recommended">Recommended</button>
           </div>
         </div>
 
-        <!-- Top Charts Section -->
-        <div class="section-block">
+        <!-- Curated & Trending Hero Section -->
+        <div class="section-block" id="section-curated">
           <div class="section-header">
-            <h2 class="section-title">Top Charts</h2>
-            <span class="section-subtitle">Updated weekly</span>
+            <h2 class="section-title">Curated & Trending</h2>
           </div>
-          <div class="horizontal-scroll" id="charts-list">
-            <!-- Dynamic Chart Cards -->
+          <div class="curated-carousel" id="curated-carousel">
+            <!-- Dynamic Curated Cards -->
           </div>
         </div>
 
-        <!-- Trending Songs Section -->
-        <div class="section-block">
+        <!-- Top Daily Playlists Section -->
+        <div class="section-block" id="section-daily-playlists">
+          <div class="section-header">
+            <h2 class="section-title">Top Daily Playlists</h2>
+            <button class="section-action-btn" id="see-all-playlists-btn">See All</button>
+          </div>
+          <div class="daily-playlists-list" id="daily-playlists-list">
+            <!-- Dynamic Daily Playlist Rows -->
+          </div>
+        </div>
+
+        <!-- Trending Hits Section -->
+        <div class="section-block" id="section-trending-hits">
           <div class="section-header">
             <h2 class="section-title">Trending Tracks</h2>
-            <button class="play-all-btn" id="play-all-trending">
-              <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
-              Play All
+            <button class="play-all-pill-btn" id="play-all-trending">
+              <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="6 4 20 12 6 20 6 4"></polygon></svg>
+              <span>Play All</span>
             </button>
           </div>
-          <div class="track-list" id="trending-tracks-list">
+          <div class="track-list" id="home-trending-tracks">
             <!-- Dynamic Track Tiles -->
           </div>
         </div>
 
-        <!-- Featured Playlists -->
-        <div class="section-block">
-          <div class="section-header">
-            <h2 class="section-title">Featured Playlists</h2>
-          </div>
-          <div class="horizontal-scroll" id="featured-playlists-list">
-            <!-- Dynamic Playlist Cards -->
-          </div>
-        </div>
-
-        <!-- New Releases / Albums -->
-        <div class="section-block">
+        <!-- New Releases Section -->
+        <div class="section-block" id="section-new-releases">
           <div class="section-header">
             <h2 class="section-title">New Releases</h2>
           </div>
-          <div class="horizontal-scroll" id="new-albums-list">
+          <div class="horizontal-scroll" id="home-new-albums">
             <!-- Dynamic Album Cards -->
           </div>
         </div>
+
       </section>
 
-      <!-- 2. SEARCH SCREEN -->
-      <section id="view-search" class="app-view">
-        <div class="search-input-container">
+      <!-- ================================================================== -->
+      <!-- 2. EXPLORE / SEARCH SCREEN -->
+      <!-- ================================================================== -->
+      <section id="view-explore" class="app-view">
+        <div class="search-header-box">
           <div class="search-input-bar">
             <svg class="search-bar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <circle cx="11" cy="11" r="8"></circle>
               <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
             </svg>
-            <input type="text" id="search-input" placeholder="Search songs, albums, artists, playlists..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+            <input type="text" id="search-input" placeholder="Search songs, artists, albums, or playlists..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
             <button id="search-clear-btn" class="search-clear hidden" aria-label="Clear Search">✕</button>
           </div>
 
@@ -148,101 +154,164 @@
           <div id="search-suggestions-dropdown" class="suggestions-dropdown hidden"></div>
         </div>
 
-        <!-- Category Filter Pills -->
-        <div class="filter-pills" id="search-filters">
-          <button class="pill active" data-filter="all">All</button>
-          <button class="pill" data-filter="songs">Songs</button>
-          <button class="pill" data-filter="albums">Albums</button>
-          <button class="pill" data-filter="playlists">Playlists</button>
-          <button class="pill" data-filter="artists">Artists</button>
+        <!-- Filter Chips -->
+        <div class="category-tabs-wrap">
+          <div class="category-tabs" id="search-filter-pills">
+            <button class="category-pill active" data-filter="all">All</button>
+            <button class="category-pill" data-filter="songs">Songs</button>
+            <button class="category-pill" data-filter="albums">Albums</button>
+            <button class="category-pill" data-filter="playlists">Playlists</button>
+            <button class="category-pill" data-filter="artists">Artists</button>
+          </div>
         </div>
 
-        <!-- Search Results Container -->
+        <!-- Search Content -->
         <div id="search-results-content" class="search-results-content">
           <div class="search-empty-state" id="search-empty-state">
-            <div class="empty-icon">🔍</div>
-            <h3>Discover Music</h3>
-            <p>Search over 100+ million high quality songs, albums, and playlists with instant streaming.</p>
+            <div class="empty-icon-lime">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+            </div>
+            <h3>Explore Infinite Music</h3>
+            <p>Stream millions of songs at 320 kbps. Search for any song, artist, album, or paste a Spotify / YouTube playlist.</p>
           </div>
           <div id="search-results-lists" class="hidden">
-            <!-- Dynamic Search Sections -->
+            <!-- Dynamic Search Results -->
           </div>
         </div>
       </section>
 
-      <!-- 3. LIBRARY SCREEN -->
-      <section id="view-library" class="app-view">
-        <div class="library-header">
-          <h1 class="page-title">Your Library</h1>
-          <button class="action-pill-btn" id="create-playlist-btn">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-            New Playlist
-          </button>
+      <!-- ================================================================== -->
+      <!-- 3. RADIO SCREEN (Infinite Flow) -->
+      <!-- ================================================================== -->
+      <section id="view-radio" class="app-view">
+        <div class="radio-hero-banner">
+          <div class="radio-hero-glow"></div>
+          <div class="radio-hero-content">
+            <span class="badge-lime">Zylo Radio Flow</span>
+            <h1>Endless Radio Stations</h1>
+            <p>Non-stop personalized music tailored to your vibe. Hit play and relax.</p>
+            <button class="primary-lime-btn" id="start-radio-flow-btn">
+              <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="6 4 20 12 6 20 6 4"></polygon></svg>
+              <span>Start Zylo Radio</span>
+            </button>
+          </div>
         </div>
 
-        <div class="library-cards-grid">
-          <!-- Liked Songs Banner Card -->
-          <div class="library-hero-card" id="library-liked-card">
-            <div class="library-hero-icon">
+        <div class="section-block">
+          <div class="section-header">
+            <h2 class="section-title">Trending Radio Stations</h2>
+          </div>
+          <div class="horizontal-scroll" id="radio-stations-list">
+            <!-- Dynamic Radio Cards -->
+          </div>
+        </div>
+
+        <div class="section-block">
+          <div class="section-header">
+            <h2 class="section-title">Radio Track Queue</h2>
+          </div>
+          <div class="track-list" id="radio-tracks-list">
+            <!-- Dynamic Radio Tracks -->
+          </div>
+        </div>
+      </section>
+
+      <!-- ================================================================== -->
+      <!-- 4. MY MUSIC SCREEN (Reference Screen 3 - Library) -->
+      <!-- ================================================================== -->
+      <section id="view-library" class="app-view">
+        
+        <div class="library-top-bar">
+          <h1 class="page-title">My Music</h1>
+          <div class="library-header-actions">
+            <button class="action-icon-pill" id="library-import-btn" title="Import Playlist">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+              <span>Import</span>
+            </button>
+            <button class="action-icon-pill lime" id="create-playlist-btn" title="New Playlist">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+              <span>New</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Filter Tabs: All, Playlists, Liked Songs, Imported -->
+        <div class="category-tabs-wrap">
+          <div class="category-tabs" id="library-filter-tabs">
+            <button class="category-pill active" data-tab="all">All</button>
+            <button class="category-pill" data-tab="playlists">Playlists</button>
+            <button class="category-pill" data-tab="liked">Liked Songs</button>
+            <button class="category-pill" data-tab="imported">Imported</button>
+          </div>
+        </div>
+
+        <!-- Library Playlists & Collections List -->
+        <div class="my-music-list" id="my-music-list">
+          
+          <!-- Liked Songs Row Item -->
+          <div class="library-item-card" id="library-liked-item">
+            <div class="library-thumb-wrap liked-thumb">
               <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"></path></svg>
             </div>
-            <div class="library-hero-info">
-              <h2>Liked Songs</h2>
-              <span id="liked-songs-count">0 songs</span>
+            <div class="library-item-info">
+              <h3 class="library-item-title">Liked Songs</h3>
+              <p class="library-item-sub" id="liked-count-text">0 songs • Favorites</p>
             </div>
-            <button class="library-play-btn" id="play-liked-songs-btn" aria-label="Play Liked Songs">
-              <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+            <button class="circular-play-btn" id="play-liked-btn" aria-label="Play Liked Songs">
+              <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="6 4 20 12 6 20 6 4"></polygon></svg>
             </button>
           </div>
 
-          <!-- Recently Played Banner Card -->
-          <div class="library-hero-card history-card" id="library-history-card">
-            <div class="library-hero-icon history-icon">
+          <!-- Recently Played Row Item -->
+          <div class="library-item-card" id="library-history-item">
+            <div class="library-thumb-wrap history-thumb">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
             </div>
-            <div class="library-hero-info">
-              <h2>Recently Played</h2>
-              <span id="history-songs-count">0 songs</span>
+            <div class="library-item-info">
+              <h3 class="library-item-title">Recently Played</h3>
+              <p class="library-item-sub" id="history-count-text">0 songs</p>
             </div>
+            <button class="circular-play-btn" id="play-history-btn" aria-label="Play History">
+              <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="6 4 20 12 6 20 6 4"></polygon></svg>
+            </button>
           </div>
+
+          <!-- Dynamic User & Imported Playlists Container -->
+          <div id="user-playlists-container">
+            <!-- Dynamic Playlist Items -->
+          </div>
+
         </div>
 
-        <!-- Custom User Playlists Section -->
-        <div class="section-block">
-          <div class="section-header">
-            <h2 class="section-title">Playlists</h2>
-          </div>
-          <div class="playlist-grid" id="user-playlists-grid">
-            <!-- Dynamic User Playlist Cards -->
-          </div>
-        </div>
       </section>
 
-      <!-- 4. SETTINGS SCREEN -->
+      <!-- ================================================================== -->
+      <!-- 5. SETTINGS SCREEN -->
+      <!-- ================================================================== -->
       <section id="view-settings" class="app-view">
         <div class="settings-header">
           <h1 class="page-title">Settings</h1>
         </div>
 
         <div class="settings-group">
-          <h3 class="settings-group-title">Audio & Playback</h3>
+          <h3 class="settings-group-title">Audio & Streaming</h3>
           
           <div class="settings-item">
             <div class="settings-label">
               <span class="setting-name">Audio Quality</span>
-              <span class="setting-desc">Stream resolution and bitrates</span>
+              <span class="setting-desc">Stream bitrate</span>
             </div>
             <select id="setting-quality" class="settings-select">
-              <option value="320">High (320 kbps AAC)</option>
-              <option value="160">Medium (160 kbps)</option>
-              <option value="96">Data Saver (96 kbps)</option>
+              <option value="320">320 kbps (High Fidelity AAC)</option>
+              <option value="160">160 kbps (Balanced)</option>
+              <option value="96">96 kbps (Data Saver)</option>
             </select>
           </div>
 
           <div class="settings-item">
             <div class="settings-label">
               <span class="setting-name">Autoplay Related Tracks</span>
-              <span class="setting-desc">Keep playing similar songs when your queue ends</span>
+              <span class="setting-desc">Continue playing similar tracks when queue finishes</span>
             </div>
             <label class="switch">
               <input type="checkbox" id="setting-autoplay" checked>
@@ -266,35 +335,54 @@
         </div>
 
         <div class="settings-group">
-          <h3 class="settings-group-title">iOS & PWA Setup</h3>
-          
-          <div class="settings-card">
-            <h4>📲 How to install as an iOS App</h4>
-            <ol class="ios-instructions">
-              <li>Open this website in <b>Safari</b> on your iPhone or iPad.</li>
-              <li>Tap the <b>Share button</b> at the bottom of the screen.</li>
-              <li>Scroll down and tap <b>Add to Home Screen</b>.</li>
-              <li>Tap <b>Add</b> in the top right corner.</li>
-            </ol>
-            <p class="settings-note">Once installed, Bloomee runs in full-screen standalone mode with background audio playback and native lock screen controls!</p>
+          <h3 class="settings-group-title">Music Imports</h3>
+          <div class="settings-card import-card-promo">
+            <h4>Import Playlists</h4>
+            <p>Import all your playlists and favorite albums from Spotify and YouTube into Zylo with 1 tap.</p>
+            <button class="primary-lime-btn small" id="settings-open-import-btn">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+              <span>Import Music</span>
+            </button>
           </div>
         </div>
 
         <div class="settings-group">
-          <h3 class="settings-group-title">About Bloomee</h3>
+          <h3 class="settings-group-title">iOS App & PWA</h3>
+          <div class="settings-card">
+            <h4>📲 Install as a Native App on iPhone</h4>
+            <ol class="ios-instructions">
+              <li>Open Zylo in <b>Safari</b> on your iPhone or iPad.</li>
+              <li>Tap the <b>Share button</b> at the bottom.</li>
+              <li>Scroll down and select <b>Add to Home Screen</b>.</li>
+              <li>Tap <b>Add</b>.</li>
+            </ol>
+            <p class="settings-note">Supports background playback, iPhone lock-screen controls, and zero browser address bars.</p>
+            <button class="secondary-btn small" id="trigger-pwa-guide-btn" style="margin-top:12px;">View Install Guide</button>
+          </div>
+        </div>
+
+        <div class="settings-group">
+          <h3 class="settings-group-title">About Zylo</h3>
           <div class="about-card">
-            <img src="/assets/BloomeeLogoFG.png" alt="Bloomee Logo" class="about-logo">
-            <h3>BloomeeTunes Web</h3>
-            <p class="about-version">Version 3.1.0 (Web Edition)</p>
-            <p class="about-credits">An Open Source, Free Music Player adapted from the Flutter client by Hemant K Arya.</p>
-            <div class="about-links">
-              <a href="https://github.com/HemantKArya/BloomeeTunes" target="_blank" rel="noopener">GitHub Repository</a>
+            <div class="about-brand-wrap">
+              <div class="about-logo-circle">Z</div>
+              <div>
+                <h3>Zylo Music</h3>
+                <span class="about-credit-badge">Created by infas.mk</span>
+              </div>
+            </div>
+            <p class="about-desc">A premium, distraction-free music streaming experience inspired by Apple Music and modern dark aesthetics.</p>
+            <div class="about-meta-row">
+              <span>Version 3.2.0</span>
+              <span>Open Source Engine</span>
             </div>
           </div>
         </div>
       </section>
 
-      <!-- 5. DETAILS SCREEN (Album / Playlist / Artist / Liked Songs) -->
+      <!-- ================================================================== -->
+      <!-- 6. DETAILS SCREEN (Album / Playlist / Artist / Liked Songs) -->
+      <!-- ================================================================== -->
       <section id="view-details" class="app-view">
         <div class="details-top-bar">
           <button class="back-btn" id="details-back-btn" aria-label="Go Back">
@@ -314,8 +402,8 @@
             <p class="details-extra" id="details-extra"></p>
             
             <div class="details-actions">
-              <button class="primary-play-btn" id="details-play-all">
-                <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+              <button class="primary-lime-btn" id="details-play-all">
+                <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="6 4 20 12 6 20 6 4"></polygon></svg>
                 <span>Play All</span>
               </button>
               <button class="secondary-btn" id="details-shuffle-all" title="Shuffle Play">
@@ -333,7 +421,9 @@
 
     </main>
 
-    <!-- FLOATING MINI PLAYER (Sticky at Bottom) -->
+    <!-- ================================================================== -->
+    <!-- FLOATING MINI PLAYER (Above Bottom Navigation) -->
+    <!-- ================================================================== -->
     <div id="mini-player" class="mini-player hidden">
       <div class="mini-progress-bar">
         <div id="mini-progress-fill" class="mini-progress-fill"></div>
@@ -346,15 +436,15 @@
           <div class="mini-title-wrap">
             <div id="mini-title" class="mini-title">No track playing</div>
           </div>
-          <div id="mini-artist" class="mini-artist">Select a song to start</div>
+          <div id="mini-artist" class="mini-artist">Select a track to start</div>
         </div>
       </div>
       <div class="mini-controls">
         <button class="icon-btn mini-like-btn" id="mini-like-btn" title="Like Song" aria-label="Like">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"></path></svg>
         </button>
-        <button class="icon-btn mini-play-btn" id="mini-play-btn" title="Play/Pause" aria-label="Play/Pause">
-          <svg class="play-icon" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+        <button class="mini-lime-play-btn" id="mini-play-btn" title="Play/Pause" aria-label="Play/Pause">
+          <svg class="play-icon" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 4 20 12 6 20 6 4"></polygon></svg>
           <svg class="pause-icon hidden" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>
         </button>
         <button class="icon-btn" id="mini-next-btn" title="Next Song" aria-label="Next">
@@ -363,28 +453,39 @@
       </div>
     </div>
 
-    <!-- BOTTOM NAVIGATION BAR (Mobile & Desktop) -->
+    <!-- ================================================================== -->
+    <!-- FLOATING BOTTOM NAVIGATION BAR -->
+    <!-- ================================================================== -->
     <nav class="bottom-nav">
-      <button class="nav-item active" data-view="explore">
+      <button class="nav-item active" data-view="home">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
           <polyline points="9 22 9 12 15 12 15 22"></polyline>
         </svg>
-        <span>Explore</span>
+        <span>Home</span>
       </button>
 
-      <button class="nav-item" data-view="search">
+      <button class="nav-item" data-view="explore">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <circle cx="11" cy="11" r="8"></circle>
           <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
         </svg>
-        <span>Search</span>
+        <span>Explore</span>
+      </button>
+
+      <button class="nav-item" data-view="radio">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="2"></circle>
+          <path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"></path>
+        </svg>
+        <span>Radio</span>
       </button>
 
       <button class="nav-item" data-view="library">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
-          <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+          <path d="M9 18V5l12-2v13"></path>
+          <circle cx="6" cy="18" r="3"></circle>
+          <circle cx="18" cy="16" r="3"></circle>
         </svg>
         <span>Library</span>
       </button>
@@ -399,61 +500,77 @@
     </nav>
   </div>
 
-  <!-- FULL NOW PLAYING MODAL SHEET -->
+  <!-- ================================================================== -->
+  <!-- NOW PLAYING FULL SCREEN (Reference Screen 2 - Immersive Player) -->
+  <!-- ================================================================== -->
   <div id="full-player" class="full-player hidden">
-    <div class="player-ambient" id="player-ambient"></div>
+    <!-- Blurred Dynamic Artwork Backdrop -->
+    <div class="player-ambient-blur" id="player-ambient-blur"></div>
+    <div class="player-dark-overlay"></div>
+
     <div class="player-container">
       
       <!-- Player Header -->
-      <div class="player-header">
-        <button class="player-dismiss-btn" id="player-dismiss-btn" aria-label="Dismiss Player">
+      <div class="player-top-header">
+        <button class="player-circle-icon-btn" id="player-dismiss-btn" aria-label="Dismiss Player">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
         </button>
-        <div class="player-header-title">
+
+        <div class="player-center-title">
           <span class="player-playing-from">Playing From</span>
-          <span class="player-source-name" id="player-source-name">Bloomee Flow</span>
+          <span class="player-source-name" id="player-source-name">Zylo Flow</span>
         </div>
-        <button class="player-options-btn" id="player-options-btn" aria-label="More Options">
-          <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="2"></circle><circle cx="19" cy="12" r="2"></circle><circle cx="5" cy="12" r="2"></circle></svg>
-        </button>
+
+        <div class="player-header-right">
+          <!-- Sleep Timer Button Directly in Player -->
+          <button class="player-circle-icon-btn" id="player-sleep-timer-btn" title="Sleep Timer" aria-label="Sleep Timer">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+            </svg>
+            <span class="sleep-timer-active-badge hidden" id="sleep-badge-mini">30m</span>
+          </button>
+
+          <!-- Favorite Heart Button -->
+          <button class="player-circle-icon-btn heart-btn" id="player-like-btn" title="Add to Liked Songs">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"></path></svg>
+          </button>
+        </div>
       </div>
 
-      <!-- Player Mode Tabs: Now Playing / Lyrics / Queue -->
-      <div class="player-mode-tabs">
-        <button class="tab-btn active" data-tab="art">Track</button>
-        <button class="tab-btn" data-tab="lyrics" id="tab-btn-lyrics">Lyrics</button>
-        <button class="tab-btn" data-tab="queue" id="tab-btn-queue">Queue (<span id="queue-count">0</span>)</button>
+      <!-- Mode Tabs: Track / Lyrics / Queue -->
+      <div class="player-tabs-bar">
+        <button class="player-tab-pill active" data-tab="art">Track</button>
+        <button class="player-tab-pill" data-tab="lyrics" id="tab-btn-lyrics">Lyrics</button>
+        <button class="player-tab-pill" data-tab="queue" id="tab-btn-queue">Queue (<span id="queue-count">0</span>)</button>
       </div>
 
-      <!-- Center Content Switcher -->
-      <div class="player-center">
+      <!-- Center Display Area -->
+      <div class="player-center-display">
         
-        <!-- Tab 1: Artwork View -->
-        <div id="tab-content-art" class="player-tab-content active">
-          <div class="player-artwork-wrap">
-            <div class="vinyl-record" id="vinyl-record">
-              <img id="player-cover" src="/assets/BloomeeLogoFG.png" alt="Artwork" class="player-cover">
-            </div>
+        <!-- Tab 1: Centered Album Artwork -->
+        <div id="tab-content-art" class="player-display-pane active">
+          <div class="player-art-frame">
+            <img id="player-cover" src="/assets/BloomeeLogoFG.png" alt="Artwork" class="player-cover-img">
           </div>
         </div>
 
-        <!-- Tab 2: Synced Lyrics View -->
-        <div id="tab-content-lyrics" class="player-tab-content">
-          <div class="lyrics-container" id="lyrics-scroll-container">
+        <!-- Tab 2: Synchronized Lyrics -->
+        <div id="tab-content-lyrics" class="player-display-pane">
+          <div class="lyrics-scroll-box" id="lyrics-scroll-container">
             <div id="lyrics-lines" class="lyrics-lines">
               <div class="lyrics-loading">Searching lyrics...</div>
             </div>
           </div>
         </div>
 
-        <!-- Tab 3: Queue View -->
-        <div id="tab-content-queue" class="player-tab-content">
-          <div class="queue-container">
-            <div class="queue-header">
+        <!-- Tab 3: Queue List -->
+        <div id="tab-content-queue" class="player-display-pane">
+          <div class="queue-box">
+            <div class="queue-bar">
               <h3>Up Next</h3>
-              <button class="queue-clear-btn" id="queue-clear-btn">Clear</button>
+              <button class="text-lime-btn" id="queue-clear-btn">Clear</button>
             </div>
-            <div class="queue-list" id="queue-items-list">
+            <div class="queue-items-scroll" id="queue-items-list">
               <!-- Dynamic queue items -->
             </div>
           </div>
@@ -461,79 +578,163 @@
 
       </div>
 
-      <!-- Track Information & Like -->
-      <div class="player-meta-row">
-        <div class="player-track-info">
-          <h2 id="player-title" class="player-title">Song Title</h2>
-          <p id="player-artist" class="player-artist">Artist Name</p>
-        </div>
-        <div class="player-meta-actions">
-          <button class="icon-btn heart-btn" id="player-like-btn" title="Add to Liked Songs">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"></path></svg>
-          </button>
-          <button class="icon-btn" id="player-add-playlist-btn" title="Add to Playlist">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-          </button>
-        </div>
+      <!-- Song Title & Artist -->
+      <div class="player-song-meta">
+        <h2 id="player-title" class="player-song-title">Song Title</h2>
+        <p id="player-artist" class="player-song-artist">Artist Name</p>
       </div>
 
-      <!-- Scrubber / Progress Slider -->
-      <div class="player-progress-wrap">
-        <input type="range" id="player-scrubber" min="0" max="100" value="0" class="player-slider" aria-label="Seek Scrubber">
-        <div class="player-time-labels">
+      <!-- Progress Scrubber & Timestamps -->
+      <div class="player-scrubber-section">
+        <input type="range" id="player-scrubber" min="0" max="100" value="0" class="player-lime-slider" aria-label="Seek Scrubber">
+        <div class="player-time-box">
           <span id="player-time-current">0:00</span>
-          <span id="player-time-total">0:00</span>
+          <span id="player-time-remaining">-0:00</span>
         </div>
       </div>
 
       <!-- Playback Controls -->
-      <div class="player-controls-row">
-        <button class="icon-btn player-ctrl-btn" id="player-shuffle-btn" title="Shuffle">
+      <div class="player-controls-container">
+        <!-- Shuffle -->
+        <button class="player-icon-action" id="player-shuffle-btn" title="Shuffle">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 3 21 3 21 8"></polyline><line x1="4" y1="20" x2="21" y2="3"></line><polyline points="21 16 21 21 16 21"></polyline><line x1="15" y1="15" x2="21" y2="21"></line><line x1="4" y1="4" x2="9" y2="9"></line></svg>
         </button>
 
-        <button class="icon-btn player-ctrl-btn" id="player-prev-btn" title="Previous">
-          <svg viewBox="0 0 24 24" fill="currentColor"><line x1="5" y1="5" x2="5" y2="19" stroke="currentColor" stroke-width="2.5"></line><polygon points="19 20 9 12 19 4 19 20"></polygon></svg>
+        <!-- Previous -->
+        <button class="player-icon-action" id="player-prev-btn" title="Previous">
+          <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="19 20 9 12 19 4 19 20"></polygon><line x1="5" y1="4" x2="5" y2="20" stroke="currentColor" stroke-width="2.5"></line></svg>
         </button>
 
-        <button class="player-main-play-btn" id="player-play-btn" title="Play/Pause">
+        <!-- Large Lime-Green Play/Pause Button -->
+        <button class="player-huge-lime-btn" id="player-play-btn" title="Play/Pause">
           <svg class="play-icon" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 4 20 12 6 20 6 4"></polygon></svg>
           <svg class="pause-icon hidden" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>
         </button>
 
-        <button class="icon-btn player-ctrl-btn" id="player-next-btn" title="Next">
-          <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5 4 15 12 5 20 5 4"></polygon><line x1="19" y1="5" x2="19" y2="19" stroke="currentColor" stroke-width="2.5"></line></svg>
+        <!-- Next -->
+        <button class="player-icon-action" id="player-next-btn" title="Next">
+          <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5 4 15 12 5 20 5 4"></polygon><line x1="19" y1="4" x2="19" y2="20" stroke="currentColor" stroke-width="2.5"></line></svg>
         </button>
 
-        <button class="icon-btn player-ctrl-btn" id="player-repeat-btn" title="Repeat">
+        <!-- Repeat -->
+        <button class="player-icon-action" id="player-repeat-btn" title="Repeat">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="17 1 21 5 17 9"></polyline><path d="M3 11V9a4 4 0 0 1 4-4h14"></path><polyline points="7 23 3 19 7 15"></polyline><path d="M21 13v2a4 4 0 0 1-4 4H3"></path></svg>
           <span class="repeat-one-indicator hidden">1</span>
         </button>
       </div>
 
-      <!-- Player Bottom Footer -->
-      <div class="player-footer-row">
-        <span class="audio-badge" id="player-quality-badge">320 KBPS AAC</span>
+      <!-- Player Bottom Actions -->
+      <div class="player-bottom-strip">
+        <span class="quality-badge" id="player-quality-badge">320 KBPS</span>
+        <button class="strip-btn" id="player-add-playlist-btn" title="Add to Playlist">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+          <span>Add to Playlist</span>
+        </button>
       </div>
 
     </div>
   </div>
 
+  <!-- ================================================================== -->
+  <!-- SLEEP TIMER BOTTOM SHEET (Direct Player Access) -->
+  <!-- ================================================================== -->
+  <div id="sleep-timer-modal" class="modal-overlay hidden">
+    <div class="modal-card timer-card">
+      <div class="modal-header">
+        <h3>Sleep Timer</h3>
+        <button class="modal-close-btn" id="sleep-modal-close">✕</button>
+      </div>
+      <div class="timer-options-list">
+        <button class="timer-option-btn" data-minutes="0">Turn Off</button>
+        <button class="timer-option-btn" data-minutes="15">15 Minutes</button>
+        <button class="timer-option-btn" data-minutes="30">30 Minutes</button>
+        <button class="timer-option-btn" data-minutes="45">45 Minutes</button>
+        <button class="timer-option-btn" data-minutes="60">60 Minutes</button>
+        <button class="timer-option-btn" data-minutes="-1">End of Current Song</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================================================================== -->
+  <!-- SPOTIFY & YOUTUBE IMPORT MODAL -->
+  <!-- ================================================================== -->
+  <div id="import-modal" class="modal-overlay hidden">
+    <div class="modal-card import-dialog">
+      <div class="modal-header">
+        <h3>Import Music</h3>
+        <button class="modal-close-btn" id="import-modal-close">✕</button>
+      </div>
+      
+      <div class="import-tabs">
+        <button class="import-tab-pill active" id="import-tab-spotify">Spotify</button>
+        <button class="import-tab-pill" id="import-tab-youtube">YouTube</button>
+      </div>
+
+      <div class="import-body">
+        <p class="import-hint" id="import-hint">Paste any Spotify Playlist, Album, or Track URL below:</p>
+        <input type="url" id="import-url-input" class="modal-input" placeholder="https://open.spotify.com/playlist/..." autocomplete="off">
+        <button class="primary-lime-btn full" id="import-submit-btn">
+          <span>Start Import</span>
+        </button>
+        <div id="import-status-box" class="import-status hidden">
+          <div class="spinner-lime"></div>
+          <span id="import-status-text">Fetching playlist tracks...</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================================================================== -->
   <!-- CREATE / ADD TO PLAYLIST MODAL -->
+  <!-- ================================================================== -->
   <div id="playlist-modal" class="modal-overlay hidden">
     <div class="modal-card">
       <div class="modal-header">
-        <h3 id="playlist-modal-title">Create New Playlist</h3>
+        <h3 id="playlist-modal-title">New Playlist</h3>
         <button class="modal-close-btn" id="modal-close-btn">✕</button>
       </div>
       <div class="modal-body" id="playlist-modal-body">
         <input type="text" id="new-playlist-input" placeholder="Playlist Name" class="modal-input" maxlength="40">
-        <button class="modal-action-btn" id="save-new-playlist-btn">Create Playlist</button>
+        <button class="primary-lime-btn full" id="save-new-playlist-btn">Create Playlist</button>
       </div>
     </div>
   </div>
 
-  <!-- TOAST / SNACKBAR NOTIFICATION -->
+  <!-- ================================================================== -->
+  <!-- FIRST TIME PWA INSTALL PROMPT MODAL -->
+  <!-- ================================================================== -->
+  <div id="pwa-install-modal" class="modal-overlay hidden">
+    <div class="modal-card pwa-card">
+      <div class="pwa-header-icon">
+        <div class="pwa-icon-glow"></div>
+        <img src="/assets/BloomeeLogoFG.png" alt="Zylo Logo" class="pwa-logo-img">
+      </div>
+      <h2>Get Zylo App Experience</h2>
+      <p class="pwa-sub-text">Install Zylo on your device for uninterrupted background playback, iOS lock-screen controls, and zero browser bars.</p>
+      
+      <div class="pwa-steps-box" id="pwa-ios-instructions">
+        <div class="pwa-step">
+          <span class="step-num">1</span>
+          <span>Tap the <b>Share</b> button <svg class="inline-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path><polyline points="16 6 12 2 8 6"></polyline><line x1="12" y1="2" x2="12" y2="15"></line></svg> in Safari.</span>
+        </div>
+        <div class="pwa-step">
+          <span class="step-num">2</span>
+          <span>Scroll down and tap <b>Add to Home Screen</b>.</span>
+        </div>
+        <div class="pwa-step">
+          <span class="step-num">3</span>
+          <span>Open Zylo from your Home Screen anytime!</span>
+        </div>
+      </div>
+
+      <div class="pwa-actions">
+        <button class="primary-lime-btn full" id="pwa-confirm-btn">Got it / Install</button>
+        <button class="text-dismiss-btn" id="pwa-dismiss-btn">Maybe Later</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST NOTIFICATION -->
   <div id="toast" class="toast hidden"></div>
 
   <!-- Hidden Audio Element -->

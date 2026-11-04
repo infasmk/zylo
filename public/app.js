@@ -1,6 +1,9 @@
 /**
- * BloomeeTunes Web - Main Application Logic
- * Audio Engine, MediaSession API, UI Router, Synced Lyrics & Library
+ * Zylo Music — Premium Dark Music Streaming Experience
+ * Created by infas.mk
+ * 
+ * Audio Engine, MediaSession API, Category Filtering, Synced Lyrics,
+ * Direct Sleep Timer in Player, Spotify/YouTube Playlist Importer & PWA Prompt
  */
 
 // ---------------------------------------------------------------------------
@@ -14,26 +17,35 @@ const state = {
   isPlaying: false,
   isShuffle: false,
   repeatMode: 'off', // 'off' | 'all' | 'one'
-  audioQuality: localStorage.getItem('bloomee_quality') || '320',
-  autoplay: localStorage.getItem('bloomee_autoplay') !== 'false',
-  
+  audioQuality: localStorage.getItem('zylo_quality') || '320',
+  autoplay: localStorage.getItem('zylo_autoplay') !== 'false',
+
   // Library data
-  likedSongs: JSON.parse(localStorage.getItem('bloomee_liked') || '[]'),
-  history: JSON.parse(localStorage.getItem('bloomee_history') || '[]'),
-  playlists: JSON.parse(localStorage.getItem('bloomee_playlists') || '[]'),
+  likedSongs: JSON.parse(localStorage.getItem('zylo_liked') || '[]'),
+  history: JSON.parse(localStorage.getItem('zylo_history') || '[]'),
+  playlists: JSON.parse(localStorage.getItem('zylo_playlists') || '[]'),
 
   // UI state
-  activeView: 'explore',
-  previousView: 'explore',
+  activeView: 'home',
+  previousView: 'home',
+  homeCategory: 'all',
+  libraryFilter: 'all',
   playerTab: 'art', // 'art' | 'lyrics' | 'queue'
   searchFilter: 'all',
-  
-  // Synced lyrics data
-  lyrics: [], // [{ time: float, text: string }]
+
+  // Raw fetched explore data
+  homeData: null,
+
+  // Lyrics
+  lyrics: [],
   currentLyricIndex: -1,
 
-  // Sleep timer
-  sleepTimerTimeout: null
+  // Sleep Timer
+  sleepTimerTimeout: null,
+  sleepTimerType: 'off', // 'off' | 'minutes' | 'end_of_track'
+  sleepTimerMinutes: 0,
+  sleepTimerEndTimestamp: 0,
+  sleepTimerInterval: null
 };
 
 // ---------------------------------------------------------------------------
@@ -44,49 +56,62 @@ const elements = {
   ambientGlow: document.getElementById('ambient-glow'),
   mainContent: document.getElementById('main-content'),
 
+  // Top Header
+  headerProfileBtn: document.getElementById('header-profile-btn'),
+  headerImportBtn: document.getElementById('header-import-btn'),
+  headerSearchBtn: document.getElementById('header-search-btn'),
+  headerFavoritesBtn: document.getElementById('header-favorites-btn'),
+
   // Views
   views: {
+    home: document.getElementById('view-home'),
     explore: document.getElementById('view-explore'),
-    search: document.getElementById('view-search'),
+    radio: document.getElementById('view-radio'),
     library: document.getElementById('view-library'),
     settings: document.getElementById('view-settings'),
     details: document.getElementById('view-details')
   },
+  navItems: document.querySelectorAll('.bottom-nav .nav-item'),
 
-  // Navigation
-  navItems: document.querySelectorAll('.nav-item'),
-  brandHomeBtn: document.getElementById('brand-home-btn'),
-  headerSearchTrigger: document.getElementById('header-search-trigger'),
-  headerSettingsBtn: document.getElementById('header-settings-btn'),
-
-  // Explore
-  exploreCarousel: document.getElementById('explore-carousel'),
-  chartsList: document.getElementById('charts-list'),
-  trendingTracksList: document.getElementById('trending-tracks-list'),
-  featuredPlaylistsList: document.getElementById('featured-playlists-list'),
-  newAlbumsList: document.getElementById('new-albums-list'),
+  // Home Screen Elements
+  homeCategoryTabs: document.getElementById('home-category-tabs'),
+  curatedCarousel: document.getElementById('curated-carousel'),
+  dailyPlaylistsList: document.getElementById('daily-playlists-list'),
+  seeAllPlaylistsBtn: document.getElementById('see-all-playlists-btn'),
+  homeTrendingTracks: document.getElementById('home-trending-tracks'),
   playAllTrending: document.getElementById('play-all-trending'),
-  iosInstallBanner: document.getElementById('ios-install-banner'),
-  iosBannerClose: document.getElementById('ios-banner-close'),
+  homeNewAlbums: document.getElementById('home-new-albums'),
+  sectionCurated: document.getElementById('section-curated'),
+  sectionDailyPlaylists: document.getElementById('section-daily-playlists'),
+  sectionTrendingHits: document.getElementById('section-trending-hits'),
+  sectionNewReleases: document.getElementById('section-new-releases'),
 
-  // Search
+  // Search / Explore Screen
   searchInput: document.getElementById('search-input'),
   searchClearBtn: document.getElementById('search-clear-btn'),
   suggestionsDropdown: document.getElementById('search-suggestions-dropdown'),
-  searchFilters: document.getElementById('search-filters'),
+  searchFilterPills: document.getElementById('search-filter-pills'),
   searchEmptyState: document.getElementById('search-empty-state'),
   searchResultsLists: document.getElementById('search-results-lists'),
 
-  // Library
-  likedCard: document.getElementById('library-liked-card'),
-  likedSongsCount: document.getElementById('liked-songs-count'),
-  playLikedSongsBtn: document.getElementById('play-liked-songs-btn'),
-  historyCard: document.getElementById('library-history-card'),
-  historySongsCount: document.getElementById('history-songs-count'),
-  userPlaylistsGrid: document.getElementById('user-playlists-grid'),
-  createPlaylistBtn: document.getElementById('create-playlist-btn'),
+  // Radio Screen
+  startRadioFlowBtn: document.getElementById('start-radio-flow-btn'),
+  radioStationsList: document.getElementById('radio-stations-list'),
+  radioTracksList: document.getElementById('radio-tracks-list'),
 
-  // Details
+  // Library Screen
+  libraryImportBtn: document.getElementById('library-import-btn'),
+  createPlaylistBtn: document.getElementById('create-playlist-btn'),
+  libraryFilterTabs: document.getElementById('library-filter-tabs'),
+  libraryLikedItem: document.getElementById('library-liked-item'),
+  likedCountText: document.getElementById('liked-count-text'),
+  playLikedBtn: document.getElementById('play-liked-btn'),
+  libraryHistoryItem: document.getElementById('library-history-item'),
+  historyCountText: document.getElementById('history-count-text'),
+  playHistoryBtn: document.getElementById('play-history-btn'),
+  userPlaylistsContainer: document.getElementById('user-playlists-container'),
+
+  // Details Screen
   detailsBackBtn: document.getElementById('details-back-btn'),
   detailsCover: document.getElementById('details-cover'),
   detailsType: document.getElementById('details-type'),
@@ -110,14 +135,17 @@ const elements = {
 
   // Full Player
   fullPlayer: document.getElementById('full-player'),
+  playerAmbientBlur: document.getElementById('player-ambient-blur'),
   playerDismissBtn: document.getElementById('player-dismiss-btn'),
   playerSourceName: document.getElementById('player-source-name'),
-  playerTabBtns: document.querySelectorAll('.player-mode-tabs .tab-btn'),
+  playerSleepTimerBtn: document.getElementById('player-sleep-timer-btn'),
+  sleepBadgeMini: document.getElementById('sleep-badge-mini'),
+  playerLikeBtn: document.getElementById('player-like-btn'),
+  playerTabPills: document.querySelectorAll('.player-tab-pill'),
   tabContentArt: document.getElementById('tab-content-art'),
   tabContentLyrics: document.getElementById('tab-content-lyrics'),
   tabContentQueue: document.getElementById('tab-content-queue'),
   playerCover: document.getElementById('player-cover'),
-  vinylRecord: document.getElementById('vinyl-record'),
   lyricsScrollContainer: document.getElementById('lyrics-scroll-container'),
   lyricsLines: document.getElementById('lyrics-lines'),
   queueItemsList: document.getElementById('queue-items-list'),
@@ -125,11 +153,9 @@ const elements = {
   queueClearBtn: document.getElementById('queue-clear-btn'),
   playerTitle: document.getElementById('player-title'),
   playerArtist: document.getElementById('player-artist'),
-  playerLikeBtn: document.getElementById('player-like-btn'),
-  playerAddPlaylistBtn: document.getElementById('player-add-playlist-btn'),
   playerScrubber: document.getElementById('player-scrubber'),
   playerTimeCurrent: document.getElementById('player-time-current'),
-  playerTimeTotal: document.getElementById('player-time-total'),
+  playerTimeRemaining: document.getElementById('player-time-remaining'),
   playerShuffleBtn: document.getElementById('player-shuffle-btn'),
   playerPrevBtn: document.getElementById('player-prev-btn'),
   playerPlayBtn: document.getElementById('player-play-btn'),
@@ -137,6 +163,36 @@ const elements = {
   playerRepeatBtn: document.getElementById('player-repeat-btn'),
   repeatOneIndicator: document.querySelector('.repeat-one-indicator'),
   playerQualityBadge: document.getElementById('player-quality-badge'),
+  playerAddPlaylistBtn: document.getElementById('player-add-playlist-btn'),
+
+  // Sleep Timer Modal
+  sleepTimerModal: document.getElementById('sleep-timer-modal'),
+  sleepModalClose: document.getElementById('sleep-modal-close'),
+  timerOptionBtns: document.querySelectorAll('.timer-option-btn'),
+
+  // Import Modal
+  importModal: document.getElementById('import-modal'),
+  importModalClose: document.getElementById('import-modal-close'),
+  importTabSpotify: document.getElementById('import-tab-spotify'),
+  importTabYoutube: document.getElementById('import-tab-youtube'),
+  importHint: document.getElementById('import-hint'),
+  importUrlInput: document.getElementById('import-url-input'),
+  importSubmitBtn: document.getElementById('import-submit-btn'),
+  importStatusBox: document.getElementById('import-status-box'),
+  importStatusText: document.getElementById('import-status-text'),
+  settingsOpenImportBtn: document.getElementById('settings-open-import-btn'),
+
+  // Playlist Modal
+  playlistModal: document.getElementById('playlist-modal'),
+  playlistModalTitle: document.getElementById('playlist-modal-title'),
+  playlistModalBody: document.getElementById('playlist-modal-body'),
+  modalCloseBtn: document.getElementById('modal-close-btn'),
+
+  // PWA Install Prompt Modal
+  pwaInstallModal: document.getElementById('pwa-install-modal'),
+  pwaConfirmBtn: document.getElementById('pwa-confirm-btn'),
+  pwaDismissBtn: document.getElementById('pwa-dismiss-btn'),
+  triggerPwaGuideBtn: document.getElementById('trigger-pwa-guide-btn'),
 
   // Settings
   settingQuality: document.getElementById('setting-quality'),
@@ -144,15 +200,12 @@ const elements = {
   settingSleepTimer: document.getElementById('setting-sleep-timer'),
   sleepTimerDesc: document.getElementById('sleep-timer-desc'),
 
-  // Modals & Toast
-  playlistModal: document.getElementById('playlist-modal'),
-  playlistModalTitle: document.getElementById('playlist-modal-title'),
-  playlistModalBody: document.getElementById('playlist-modal-body'),
-  newPlaylistInput: document.getElementById('new-playlist-input'),
-  saveNewPlaylistBtn: document.getElementById('save-new-playlist-btn'),
-  modalCloseBtn: document.getElementById('modal-close-btn'),
+  // Toast
   toast: document.getElementById('toast')
 };
+
+let deferredPrompt = null;
+let currentImportSource = 'spotify';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -170,13 +223,13 @@ function showToast(message) {
   clearTimeout(elements.toast._timer);
   elements.toast._timer = setTimeout(() => {
     elements.toast.classList.add('hidden');
-  }, 2400);
+  }, 2600);
 }
 
 function saveLibrary() {
-  localStorage.setItem('bloomee_liked', JSON.stringify(state.likedSongs));
-  localStorage.setItem('bloomee_history', JSON.stringify(state.history));
-  localStorage.setItem('bloomee_playlists', JSON.stringify(state.playlists));
+  localStorage.setItem('zylo_liked', JSON.stringify(state.likedSongs));
+  localStorage.setItem('zylo_history', JSON.stringify(state.history));
+  localStorage.setItem('zylo_playlists', JSON.stringify(state.playlists));
   updateLibraryUI();
 }
 
@@ -218,7 +271,6 @@ function addToHistory(track) {
 // ---------------------------------------------------------------------------
 function getStreamUrlForTrack(track) {
   if (!track) return null;
-  // If we have stream variants (320, 160, 96), pick based on user quality setting
   const quality = state.audioQuality || '320';
   const rawUrl = track.streams?.[quality] ||
                  track.streams?.['320'] ||
@@ -226,17 +278,29 @@ function getStreamUrlForTrack(track) {
                  track.stream_url;
 
   if (!rawUrl) return null;
-  // Proxy through /api/stream with proper Range headers for iOS Safari
   return `/api/stream?url=${encodeURIComponent(rawUrl)}`;
 }
 
 async function playTrack(track, fromQueue = false) {
   if (!track) return;
 
+  // If this is an imported placeholder track without stream_url, resolve it first
+  if (!track.stream_url && !track.streams) {
+    showToast(`Resolving ${track.title}...`);
+    try {
+      const res = await fetch(`/api/resolve?title=${encodeURIComponent(track.title)}&artist=${encodeURIComponent(track.artist || '')}`);
+      const data = await res.json();
+      if (data.success && data.track) {
+        Object.assign(track, data.track);
+      }
+    } catch (e) {
+      console.error('Resolve error:', e);
+    }
+  }
+
   state.currentTrack = track;
   addToHistory(track);
 
-  // If track was not played from existing queue, update queue
   if (!fromQueue) {
     state.queue = [track];
     state.queueIndex = 0;
@@ -245,7 +309,7 @@ async function playTrack(track, fromQueue = false) {
 
   const streamUrl = getStreamUrlForTrack(track);
   if (!streamUrl) {
-    showToast('Stream URL unavailable for this track');
+    showToast('Stream unavailable for this track');
     return;
   }
 
@@ -256,7 +320,7 @@ async function playTrack(track, fromQueue = false) {
     await elements.audio.play();
     state.isPlaying = true;
   } catch (err) {
-    console.error('Audio play error:', err);
+    console.error('Playback error:', err);
     state.isPlaying = false;
   }
 
@@ -266,7 +330,7 @@ async function playTrack(track, fromQueue = false) {
   setupMediaSession(track);
 }
 
-function playQueue(tracks, startIndex = 0, sourceName = 'Queue') {
+function playQueue(tracks, startIndex = 0, sourceName = 'Zylo') {
   if (!tracks || !tracks.length) return;
   state.queue = [...tracks];
   state.originalQueue = [...tracks];
@@ -300,6 +364,15 @@ function togglePlayPause() {
 }
 
 function playNextTrack() {
+  if (state.sleepTimerType === 'end_of_track') {
+    elements.audio.pause();
+    state.isPlaying = false;
+    clearSleepTimer();
+    showToast('Sleep timer: song ended. Music stopped.');
+    updatePlayPauseIcons();
+    return;
+  }
+
   if (!state.queue.length) return;
 
   if (state.repeatMode === 'one') {
@@ -325,8 +398,6 @@ function playNextTrack() {
 
 function playPrevTrack() {
   if (!state.queue.length) return;
-
-  // If track has been playing for more than 3 seconds, restart it
   if (elements.audio.currentTime > 3) {
     elements.audio.currentTime = 0;
     return;
@@ -392,12 +463,11 @@ function toggleRepeat() {
 }
 
 async function fetchAutoplayRecommendations(trackId) {
-  showToast('Playing next from Bloomee Flow...');
+  showToast('Queue ended. Loading Zylo Flow...');
   try {
     const res = await fetch(`/api/recommendations?id=${trackId}`);
     const data = await res.json();
     if (data.success && data.recommendations?.length > 0) {
-      // Add fresh recommendations to queue
       const existingIds = new Set(state.queue.map(t => t.id));
       const fresh = data.recommendations.filter(t => !existingIds.has(t.id));
       if (fresh.length > 0) {
@@ -413,23 +483,99 @@ async function fetchAutoplayRecommendations(trackId) {
 }
 
 // ---------------------------------------------------------------------------
+// Direct Sleep Timer (Inside Player & Settings)
+// ---------------------------------------------------------------------------
+function setSleepTimer(minutes) {
+  clearSleepTimer();
+
+  if (minutes === 0) {
+    showToast('Sleep timer turned off');
+    return;
+  }
+
+  if (minutes === -1) {
+    // End of current track
+    state.sleepTimerType = 'end_of_track';
+    elements.sleepBadgeMini.textContent = '1s';
+    elements.sleepBadgeMini.classList.remove('hidden');
+    elements.sleepTimerDesc.textContent = 'Stopping at end of current song';
+    showToast('Sleep timer: Stopping at end of song');
+    return;
+  }
+
+  state.sleepTimerType = 'minutes';
+  state.sleepTimerMinutes = minutes;
+  state.sleepTimerEndTimestamp = Date.now() + minutes * 60 * 1000;
+
+  elements.sleepBadgeMini.textContent = `${minutes}m`;
+  elements.sleepBadgeMini.classList.remove('hidden');
+  elements.sleepTimerDesc.textContent = `Stopping in ${minutes} minutes`;
+
+  state.sleepTimerInterval = setInterval(() => {
+    const leftMs = state.sleepTimerEndTimestamp - Date.now();
+    if (leftMs <= 0) {
+      elements.audio.pause();
+      state.isPlaying = false;
+      updatePlayPauseIcons();
+      clearSleepTimer();
+      showToast('Sleep timer expired. Music paused.');
+    } else {
+      const leftMins = Math.ceil(leftMs / (60 * 1000));
+      elements.sleepBadgeMini.textContent = `${leftMins}m`;
+    }
+  }, 10000);
+
+  showToast(`Sleep timer set for ${minutes} minutes`);
+}
+
+function clearSleepTimer() {
+  clearInterval(state.sleepTimerInterval);
+  clearTimeout(state.sleepTimerTimeout);
+  state.sleepTimerType = 'off';
+  state.sleepTimerMinutes = 0;
+  elements.sleepBadgeMini.classList.add('hidden');
+  elements.sleepTimerDesc.textContent = 'Off';
+  elements.settingSleepTimer.value = '0';
+}
+
+// Sleep timer modal triggers
+elements.playerSleepTimerBtn.addEventListener('click', () => {
+  elements.sleepTimerModal.classList.remove('hidden');
+});
+
+elements.sleepModalClose.addEventListener('click', () => {
+  elements.sleepTimerModal.classList.add('hidden');
+});
+
+elements.timerOptionBtns.forEach(btn => {
+  btn.addEventListener('click', () => {
+    const minutes = parseInt(btn.dataset.minutes, 10);
+    setSleepTimer(minutes);
+    elements.sleepTimerModal.classList.add('hidden');
+  });
+});
+
+elements.settingSleepTimer.addEventListener('change', () => {
+  const minutes = parseInt(elements.settingSleepTimer.value, 10);
+  setSleepTimer(minutes);
+});
+
+// ---------------------------------------------------------------------------
 // MediaSession API (iOS Lock Screen & Control Center)
 // ---------------------------------------------------------------------------
 function setupMediaSession(track) {
   if (!('mediaSession' in navigator) || !track) return;
-
   const artworkUrl = track.image || '/assets/BloomeeLogoFG.png';
 
   navigator.mediaSession.metadata = new MediaMetadata({
     title: track.title,
     artist: track.artist,
-    album: track.album || 'Bloomee',
+    album: track.album || 'Zylo',
     artwork: [
       { src: artworkUrl, sizes: '96x96', type: 'image/jpeg' },
       { src: artworkUrl, sizes: '128x128', type: 'image/jpeg' },
       { src: artworkUrl, sizes: '192x192', type: 'image/jpeg' },
       { src: artworkUrl, sizes: '256x256', type: 'image/jpeg' },
-      { src: artworkUrl, sizes: '384x384', type: 'image/jpeg' },
       { src: artworkUrl, sizes: '512x512', type: 'image/jpeg' }
     ]
   });
@@ -484,13 +630,11 @@ function updateMediaSessionPosition() {
 elements.audio.addEventListener('play', () => {
   state.isPlaying = true;
   updatePlayPauseIcons();
-  elements.vinylRecord.style.animationPlayState = 'running';
 });
 
 elements.audio.addEventListener('pause', () => {
   state.isPlaying = false;
   updatePlayPauseIcons();
-  elements.vinylRecord.style.animationPlayState = 'paused';
 });
 
 elements.audio.addEventListener('timeupdate', () => {
@@ -502,7 +646,7 @@ elements.audio.addEventListener('timeupdate', () => {
 elements.audio.addEventListener('loadedmetadata', () => {
   const dur = elements.audio.duration;
   elements.playerScrubber.max = dur;
-  elements.playerTimeTotal.textContent = formatSeconds(dur);
+  elements.playerTimeRemaining.textContent = `-${formatSeconds(dur)}`;
 });
 
 elements.audio.addEventListener('ended', () => {
@@ -511,7 +655,7 @@ elements.audio.addEventListener('ended', () => {
 
 elements.audio.addEventListener('error', (e) => {
   console.error('Audio playback error:', e);
-  showToast('Playback error. Trying next stream...');
+  showToast('Stream error. Trying next stream...');
   setTimeout(() => playNextTrack(), 1000);
 });
 
@@ -521,19 +665,23 @@ elements.audio.addEventListener('error', (e) => {
 function updateScrubberPosition() {
   const cur = elements.audio.currentTime || 0;
   const dur = elements.audio.duration || 1;
+  const remaining = Math.max(dur - cur, 0);
   const pct = (cur / dur) * 100;
 
   elements.playerScrubber.value = cur;
   elements.playerTimeCurrent.textContent = formatSeconds(cur);
+  elements.playerTimeRemaining.textContent = `-${formatSeconds(remaining)}`;
   elements.miniProgressFill.style.width = `${pct}%`;
 
-  // Gradient fill on slider track
-  elements.playerScrubber.style.background = `linear-gradient(to right, #ec4899 0%, #8b5cf6 ${pct}%, rgba(255,255,255,0.15) ${pct}%, rgba(255,255,255,0.15) 100%)`;
+  // Lime-green fill slider styling
+  elements.playerScrubber.style.background = `linear-gradient(to right, #C7F464 0%, #C7F464 ${pct}%, rgba(255,255,255,0.15) ${pct}%, rgba(255,255,255,0.15) 100%)`;
 }
 
 elements.playerScrubber.addEventListener('input', () => {
   const seekTo = parseFloat(elements.playerScrubber.value);
+  const dur = elements.audio.duration || 1;
   elements.playerTimeCurrent.textContent = formatSeconds(seekTo);
+  elements.playerTimeRemaining.textContent = `-${formatSeconds(Math.max(dur - seekTo, 0))}`;
 });
 
 elements.playerScrubber.addEventListener('change', () => {
@@ -560,7 +708,7 @@ function updatePlayerUI() {
   const track = state.currentTrack;
   if (!track) return;
 
-  // Reveal mini player if hidden
+  // Reveal mini player
   elements.miniPlayer.classList.remove('hidden');
 
   // Mini Player
@@ -572,12 +720,14 @@ function updatePlayerUI() {
   elements.playerCover.src = track.image;
   elements.playerTitle.textContent = track.title;
   elements.playerArtist.textContent = track.artist;
-  elements.playerQualityBadge.textContent = `${state.audioQuality} KBPS AAC`;
+  elements.playerQualityBadge.textContent = `${state.audioQuality} KBPS`;
+
+  // Dynamic Ambient Artwork Blur in Full Player
+  elements.playerAmbientBlur.style.backgroundImage = `url('${track.image}')`;
 
   updatePlayPauseIcons();
   updateLikeButtons();
 
-  // Highlight active track in lists
   document.querySelectorAll('.track-tile').forEach(tile => {
     tile.classList.toggle('active', tile.dataset.id === track.id);
   });
@@ -601,7 +751,7 @@ function updateQueueUI() {
         <div class="track-meta">${track.artist}</div>
       </div>
       <div class="track-duration">${formatSeconds(track.duration)}</div>
-      <button class="track-btn remove-queue-btn" title="Remove from queue">✕</button>
+      <button class="track-btn remove-queue-btn" title="Remove">✕</button>
     `;
 
     item.addEventListener('click', (e) => {
@@ -724,7 +874,6 @@ function renderPlainLyrics(text) {
 function syncLyricsToPlayback(currentTime) {
   if (!state.lyrics.length) return;
 
-  // Find line with time <= currentTime
   let activeIndex = -1;
   for (let i = 0; i < state.lyrics.length; i++) {
     if (currentTime >= state.lyrics[i].time) {
@@ -742,7 +891,6 @@ function syncLyricsToPlayback(currentTime) {
       el.classList.toggle('active', idx === activeIndex);
     });
 
-    // Auto-scroll active line to center
     const activeEl = lineElements[activeIndex];
     if (activeEl && elements.lyricsScrollContainer) {
       const containerHeight = elements.lyricsScrollContainer.clientHeight;
@@ -780,13 +928,13 @@ elements.navItems.forEach(item => {
   item.addEventListener('click', () => navigateTo(item.dataset.view));
 });
 
-elements.brandHomeBtn.addEventListener('click', () => navigateTo('explore'));
-elements.headerSearchTrigger.addEventListener('click', () => {
-  navigateTo('search');
+elements.headerProfileBtn.addEventListener('click', () => navigateTo('library'));
+elements.headerSearchBtn.addEventListener('click', () => {
+  navigateTo('explore');
   elements.searchInput.focus();
 });
-elements.headerSettingsBtn.addEventListener('click', () => navigateTo('settings'));
-elements.detailsBackBtn.addEventListener('click', () => navigateTo(state.previousView || 'explore'));
+elements.headerFavoritesBtn.addEventListener('click', () => loadDetailsView('liked'));
+elements.detailsBackBtn.addEventListener('click', () => navigateTo(state.previousView || 'home'));
 
 // ---------------------------------------------------------------------------
 // Mini Player & Full Player Controls
@@ -799,13 +947,12 @@ elements.playerDismissBtn.addEventListener('click', () => {
   elements.fullPlayer.classList.add('hidden');
 });
 
-// Tab Switcher in Full Player
-elements.playerTabBtns.forEach(btn => {
-  btn.addEventListener('click', () => {
-    const tab = btn.dataset.tab;
+elements.playerTabPills.forEach(pill => {
+  pill.addEventListener('click', () => {
+    const tab = pill.dataset.tab;
     state.playerTab = tab;
 
-    elements.playerTabBtns.forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+    elements.playerTabPills.forEach(p => p.classList.toggle('active', p.dataset.tab === tab));
     elements.tabContentArt.classList.toggle('active', tab === 'art');
     elements.tabContentLyrics.classList.toggle('active', tab === 'lyrics');
     elements.tabContentQueue.classList.toggle('active', tab === 'queue');
@@ -838,7 +985,7 @@ elements.playerLikeBtn.addEventListener('click', () => {
 });
 
 // ---------------------------------------------------------------------------
-// UI Component Builders (Track Tiles, Cards)
+// UI Component Builders (Track Tiles, Rows, Cards)
 // ---------------------------------------------------------------------------
 function createTrackTile(track, onPlay) {
   const tile = document.createElement('div');
@@ -883,15 +1030,40 @@ function createTrackTile(track, onPlay) {
   return tile;
 }
 
+function createDailyPlaylistRow(item, onPlay, onClick) {
+  const row = document.createElement('div');
+  row.className = 'daily-playlist-row';
+  row.innerHTML = `
+    <div class="daily-playlist-thumb-wrap">
+      <img class="daily-playlist-thumb" src="${item.image}" alt="" loading="lazy">
+    </div>
+    <div class="daily-playlist-info">
+      <div class="daily-playlist-name">${item.title}</div>
+      <div class="daily-playlist-meta">${item.subtitle || 'Zylo Daily'} • ${item.count || 25} tracks</div>
+    </div>
+    <button class="circular-play-btn" title="Play">
+      <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="6 4 20 12 6 20 6 4"></polygon></svg>
+    </button>
+  `;
+
+  row.addEventListener('click', (e) => {
+    if (e.target.closest('.circular-play-btn')) {
+      e.stopPropagation();
+      if (onPlay) onPlay();
+      return;
+    }
+    if (onClick) onClick();
+  });
+
+  return row;
+}
+
 function createMediaCard(item, onClick) {
   const card = document.createElement('div');
   card.className = 'media-card';
   card.innerHTML = `
     <div class="media-card-thumb-wrap">
       <img class="media-card-img" src="${item.image}" alt="" loading="lazy">
-      <div class="card-play-overlay">
-        <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="6 4 20 12 6 20 6 4"></polygon></svg>
-      </div>
     </div>
     <div class="media-card-title">${item.title}</div>
     <div class="media-card-subtitle">${item.subtitle || item.artist || ''}</div>
@@ -901,77 +1073,148 @@ function createMediaCard(item, onClick) {
 }
 
 // ---------------------------------------------------------------------------
-// Explore Screen Initialization & Data Fetching
+// Home Screen Data & Category Filter
 // ---------------------------------------------------------------------------
-async function loadExploreData() {
+async function loadHomeData() {
   try {
     const res = await fetch('/api/home');
     const data = await res.json();
     if (!data.success) return;
+    state.homeData = data;
 
-    // 1. Featured Carousel
-    renderCarousel(data.charts.slice(0, 3).concat(data.featuredPlaylists.slice(0, 2)));
+    // 1. Curated Carousel
+    renderCuratedCarousel(data.featuredPlaylists.slice(0, 3).concat(data.charts.slice(0, 2)));
 
-    // 2. Top Charts
-    elements.chartsList.innerHTML = '';
-    data.charts.forEach(chart => {
-      elements.chartsList.appendChild(createMediaCard(chart, () => loadDetailsView('chart', chart.id)));
+    // 2. Top Daily Playlists
+    elements.dailyPlaylistsList.innerHTML = '';
+    data.featuredPlaylists.slice(0, 5).forEach(pl => {
+      elements.dailyPlaylistsList.appendChild(
+        createDailyPlaylistRow(
+          pl,
+          () => loadAndPlayPlaylist(pl.id, pl.title),
+          () => loadDetailsView('playlist', pl.id)
+        )
+      );
     });
 
     // 3. Trending Tracks
-    elements.trendingTracksList.innerHTML = '';
-    data.trendingSongs.forEach((track, idx) => {
-      elements.trendingTracksList.appendChild(
+    elements.homeTrendingTracks.innerHTML = '';
+    data.trendingSongs.slice(0, 15).forEach((track, idx) => {
+      elements.homeTrendingTracks.appendChild(
         createTrackTile(track, () => playQueue(data.trendingSongs, idx, 'Trending'))
       );
     });
 
-    // Play All Trending
     elements.playAllTrending.onclick = () => {
       if (data.trendingSongs.length > 0) {
-        playQueue(data.trendingSongs, 0, 'Trending');
+        playQueue(data.trendingSongs, 0, 'Trending Hits');
       }
     };
 
-    // 4. Featured Playlists
-    elements.featuredPlaylistsList.innerHTML = '';
-    data.featuredPlaylists.forEach(playlist => {
-      elements.featuredPlaylistsList.appendChild(
-        createMediaCard(playlist, () => loadDetailsView('playlist', playlist.id))
-      );
-    });
-
-    // 5. New Albums
-    elements.newAlbumsList.innerHTML = '';
+    // 4. New Releases / Albums
+    elements.homeNewAlbums.innerHTML = '';
     data.newAlbums.forEach(album => {
-      elements.newAlbumsList.appendChild(
+      elements.homeNewAlbums.appendChild(
         createMediaCard(album, () => loadDetailsView('album', album.id))
       );
     });
 
+    // 5. Radio Stations (for Radio view)
+    renderRadioView(data);
+
   } catch (err) {
-    console.error('Failed to load explore data:', err);
+    console.error('Failed to load home data:', err);
   }
 }
 
-function renderCarousel(items) {
-  elements.exploreCarousel.innerHTML = '';
+function renderCuratedCarousel(items) {
+  elements.curatedCarousel.innerHTML = '';
   items.forEach(item => {
     const card = document.createElement('div');
-    card.className = 'carousel-card';
+    card.className = 'curated-card';
     card.innerHTML = `
-      <img class="carousel-bg" src="${item.image}" alt="">
-      <div class="carousel-overlay">
-        <span class="carousel-tag">${item.type || 'Featured'}</span>
-        <h2 class="carousel-title">${item.title}</h2>
-        <p class="carousel-desc">${item.subtitle || 'Tap to listen now on Bloomee'}</p>
+      <img class="curated-card-bg" src="${item.image}" alt="">
+      <div class="curated-card-overlay">
+        <span class="curated-tag">${item.type || 'Curated & Trending'}</span>
+        <h2 class="curated-card-title">${item.title}</h2>
+        <p class="curated-card-desc">${item.subtitle || 'Tap to play in Zylo Music'}</p>
       </div>
     `;
     card.addEventListener('click', () => {
       loadDetailsView(item.type || 'playlist', item.id);
     });
-    elements.exploreCarousel.appendChild(card);
+    elements.curatedCarousel.appendChild(card);
   });
+}
+
+function filterHomeSections(category) {
+  state.homeCategory = category;
+
+  if (category === 'all') {
+    elements.sectionCurated.classList.remove('hidden');
+    elements.sectionDailyPlaylists.classList.remove('hidden');
+    elements.sectionTrendingHits.classList.remove('hidden');
+    elements.sectionNewReleases.classList.remove('hidden');
+  } else if (category === 'new') {
+    elements.sectionCurated.classList.add('hidden');
+    elements.sectionDailyPlaylists.classList.add('hidden');
+    elements.sectionTrendingHits.classList.add('hidden');
+    elements.sectionNewReleases.classList.remove('hidden');
+  } else if (category === 'trending') {
+    elements.sectionCurated.classList.remove('hidden');
+    elements.sectionDailyPlaylists.classList.add('hidden');
+    elements.sectionTrendingHits.classList.remove('hidden');
+    elements.sectionNewReleases.classList.add('hidden');
+  } else if (category === 'charts') {
+    elements.sectionCurated.classList.add('hidden');
+    elements.sectionDailyPlaylists.classList.remove('hidden');
+    elements.sectionTrendingHits.classList.remove('hidden');
+    elements.sectionNewReleases.classList.add('hidden');
+  } else if (category === 'recommended') {
+    elements.sectionCurated.classList.remove('hidden');
+    elements.sectionDailyPlaylists.classList.remove('hidden');
+    elements.sectionTrendingHits.classList.add('hidden');
+    elements.sectionNewReleases.classList.remove('hidden');
+  }
+}
+
+elements.homeCategoryTabs.querySelectorAll('.category-pill').forEach(pill => {
+  pill.addEventListener('click', () => {
+    elements.homeCategoryTabs.querySelectorAll('.category-pill').forEach(p => p.classList.remove('active'));
+    pill.classList.add('active');
+    filterHomeSections(pill.dataset.category);
+  });
+});
+
+elements.seeAllPlaylistsBtn.addEventListener('click', () => {
+  navigateTo('library');
+});
+
+// ---------------------------------------------------------------------------
+// Radio View
+// ---------------------------------------------------------------------------
+function renderRadioView(data) {
+  elements.radioStationsList.innerHTML = '';
+  (data.charts || []).forEach(chart => {
+    elements.radioStationsList.appendChild(
+      createMediaCard(chart, () => loadDetailsView('chart', chart.id))
+    );
+  });
+
+  elements.radioTracksList.innerHTML = '';
+  (data.trendingSongs || []).slice(0, 10).forEach((track, idx) => {
+    elements.radioTracksList.appendChild(
+      createTrackTile(track, () => playQueue(data.trendingSongs, idx, 'Radio Flow'))
+    );
+  });
+
+  elements.startRadioFlowBtn.onclick = () => {
+    if (data.trendingSongs?.length) {
+      state.isShuffle = true;
+      elements.playerShuffleBtn.classList.add('active');
+      playQueue(data.trendingSongs, 0, 'Zylo Radio Flow');
+    }
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -986,10 +1229,10 @@ async function loadDetailsView(type, id) {
 
   if (type === 'liked') {
     elements.detailsCover.src = '/assets/BloomeeLogoFG.png';
-    elements.detailsType.textContent = 'Collection';
+    elements.detailsType.textContent = 'Favorites';
     elements.detailsTitle.textContent = 'Liked Songs';
-    elements.detailsSubtitle.textContent = `${state.likedSongs.length} favorite songs`;
-    elements.detailsExtra.textContent = 'Saved in local library';
+    elements.detailsSubtitle.textContent = `${state.likedSongs.length} songs • Personal Collection`;
+    elements.detailsExtra.textContent = 'Saved in your Zylo library';
     currentDetailsTracks = [...state.likedSongs];
     renderDetailsTracklist('Liked Songs');
     return;
@@ -1000,20 +1243,20 @@ async function loadDetailsView(type, id) {
     elements.detailsType.textContent = 'History';
     elements.detailsTitle.textContent = 'Recently Played';
     elements.detailsSubtitle.textContent = `${state.history.length} songs`;
-    elements.detailsExtra.textContent = 'Playback history';
+    elements.detailsExtra.textContent = 'Listening History';
     currentDetailsTracks = [...state.history];
     renderDetailsTracklist('Recently Played');
     return;
   }
 
-  if (type === 'user_playlist') {
+  if (type === 'user_playlist' || type === 'imported') {
     const pl = state.playlists.find(p => p.id === id);
     if (!pl) return;
     elements.detailsCover.src = pl.image || '/assets/BloomeeLogoFG.png';
-    elements.detailsType.textContent = 'Custom Playlist';
+    elements.detailsType.textContent = pl.type === 'imported' ? 'Imported Playlist' : 'Playlist';
     elements.detailsTitle.textContent = pl.name;
     elements.detailsSubtitle.textContent = `${pl.tracks.length} tracks`;
-    elements.detailsExtra.textContent = 'User Created';
+    elements.detailsExtra.textContent = pl.type === 'imported' ? 'Imported to Zylo' : 'Created by you';
     currentDetailsTracks = [...pl.tracks];
     renderDetailsTracklist(pl.name);
     return;
@@ -1065,6 +1308,18 @@ function renderDetailsTracklist(sourceName) {
     elements.playerShuffleBtn.classList.add('active');
     playQueue(currentDetailsTracks, Math.floor(Math.random() * currentDetailsTracks.length), sourceName);
   };
+}
+
+async function loadAndPlayPlaylist(id, title) {
+  try {
+    const res = await fetch(`/api/playlist/${id}`);
+    const data = await res.json();
+    if (data.playlist?.songs?.length) {
+      playQueue(data.playlist.songs, 0, title);
+    }
+  } catch (e) {
+    console.error(e);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -1149,7 +1404,6 @@ async function executeSearch(query) {
 
 function renderSearchResults(data) {
   elements.searchResultsLists.innerHTML = '';
-
   const filter = state.searchFilter;
 
   // Songs
@@ -1221,10 +1475,9 @@ function renderSearchResults(data) {
   }
 }
 
-// Search Filter Pills
-elements.searchFilters.querySelectorAll('.pill').forEach(pill => {
+elements.searchFilterPills.querySelectorAll('.category-pill').forEach(pill => {
   pill.addEventListener('click', () => {
-    elements.searchFilters.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
+    elements.searchFilterPills.querySelectorAll('.category-pill').forEach(p => p.classList.remove('active'));
     pill.classList.add('active');
     state.searchFilter = pill.dataset.filter;
     const q = elements.searchInput.value.trim();
@@ -1233,34 +1486,65 @@ elements.searchFilters.querySelectorAll('.pill').forEach(pill => {
 });
 
 // ---------------------------------------------------------------------------
-// Library & Custom Playlists
+// Library & My Music (Reference Screen 3)
 // ---------------------------------------------------------------------------
 function updateLibraryUI() {
-  elements.likedSongsCount.textContent = `${state.likedSongs.length} songs`;
-  elements.historySongsCount.textContent = `${state.history.length} songs`;
+  elements.likedCountText.textContent = `${state.likedSongs.length} songs • Favorites`;
+  elements.historyCountText.textContent = `${state.history.length} songs • History`;
 
-  elements.userPlaylistsGrid.innerHTML = '';
-  state.playlists.forEach(pl => {
+  const filter = state.libraryFilter;
+  elements.userPlaylistsContainer.innerHTML = '';
+
+  // Show/Hide Liked and History according to filter
+  if (filter === 'all') {
+    elements.libraryLikedItem.classList.remove('hidden');
+    elements.libraryHistoryItem.classList.remove('hidden');
+  } else if (filter === 'liked') {
+    elements.libraryLikedItem.classList.remove('hidden');
+    elements.libraryHistoryItem.classList.add('hidden');
+  } else if (filter === 'playlists' || filter === 'imported') {
+    elements.libraryLikedItem.classList.add('hidden');
+    elements.libraryHistoryItem.classList.add('hidden');
+  }
+
+  // Filter playlists
+  const playlistsToShow = state.playlists.filter(pl => {
+    if (filter === 'all' || filter === 'playlists') return true;
+    if (filter === 'imported') return pl.type === 'imported';
+    return false;
+  });
+
+  playlistsToShow.forEach(pl => {
     const card = document.createElement('div');
-    card.className = 'media-card';
+    card.className = 'library-item-card';
     card.innerHTML = `
-      <div class="media-card-thumb-wrap">
-        <img class="media-card-img" src="${pl.image || '/assets/BloomeeLogoFG.png'}" alt="">
-        <div class="card-play-overlay">
-          <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="6 4 20 12 6 20 6 4"></polygon></svg>
-        </div>
+      <div class="library-thumb-wrap">
+        <img src="${pl.image || '/assets/BloomeeLogoFG.png'}" alt="">
       </div>
-      <div class="media-card-title">${pl.name}</div>
-      <div class="media-card-subtitle">${pl.tracks.length} tracks</div>
+      <div class="library-item-info">
+        <div class="library-item-title">${pl.name}</div>
+        <div class="library-item-sub">${pl.tracks.length} tracks • ${pl.type === 'imported' ? 'Imported' : 'Custom Playlist'}</div>
+      </div>
+      <button class="circular-play-btn" title="Play">
+        <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="6 4 20 12 6 20 6 4"></polygon></svg>
+      </button>
     `;
-    card.addEventListener('click', () => loadDetailsView('user_playlist', pl.id));
-    elements.userPlaylistsGrid.appendChild(card);
+
+    card.addEventListener('click', (e) => {
+      if (e.target.closest('.circular-play-btn')) {
+        e.stopPropagation();
+        if (pl.tracks.length > 0) playQueue(pl.tracks, 0, pl.name);
+        return;
+      }
+      loadDetailsView(pl.type === 'imported' ? 'imported' : 'user_playlist', pl.id);
+    });
+
+    elements.userPlaylistsContainer.appendChild(card);
   });
 }
 
-elements.likedCard.addEventListener('click', () => loadDetailsView('liked'));
-elements.historyCard.addEventListener('click', () => loadDetailsView('history'));
-elements.playLikedSongsBtn.addEventListener('click', (e) => {
+elements.libraryLikedItem.addEventListener('click', () => loadDetailsView('liked'));
+elements.playLikedBtn.addEventListener('click', (e) => {
   e.stopPropagation();
   if (state.likedSongs.length > 0) {
     playQueue(state.likedSongs, 0, 'Liked Songs');
@@ -1269,12 +1553,31 @@ elements.playLikedSongsBtn.addEventListener('click', (e) => {
   }
 });
 
+elements.libraryHistoryItem.addEventListener('click', () => loadDetailsView('history'));
+elements.playHistoryBtn.addEventListener('click', (e) => {
+  e.stopPropagation();
+  if (state.history.length > 0) {
+    playQueue(state.history, 0, 'Recently Played');
+  } else {
+    showToast('No history yet');
+  }
+});
+
+elements.libraryFilterTabs.querySelectorAll('.category-pill').forEach(pill => {
+  pill.addEventListener('click', () => {
+    elements.libraryFilterTabs.querySelectorAll('.category-pill').forEach(p => p.classList.remove('active'));
+    pill.classList.add('active');
+    state.libraryFilter = pill.dataset.tab;
+    updateLibraryUI();
+  });
+});
+
 // Create Playlist Modal
 elements.createPlaylistBtn.addEventListener('click', () => {
-  elements.playlistModalTitle.textContent = 'Create New Playlist';
+  elements.playlistModalTitle.textContent = 'New Playlist';
   elements.playlistModalBody.innerHTML = `
     <input type="text" id="new-playlist-input" placeholder="Playlist Name" class="modal-input" maxlength="40">
-    <button class="modal-action-btn" id="save-new-playlist-btn">Create Playlist</button>
+    <button class="primary-lime-btn full" id="save-new-playlist-btn">Create Playlist</button>
   `;
   elements.playlistModal.classList.remove('hidden');
 
@@ -1287,11 +1590,12 @@ elements.createPlaylistBtn.addEventListener('click', () => {
     if (!name) return;
     const newPl = {
       id: 'pl_' + Date.now(),
-      name: name,
+      name,
+      type: 'user',
       image: '/assets/BloomeeLogoFG.png',
       tracks: []
     };
-    state.playlists.push(newPl);
+    state.playlists.unshift(newPl);
     saveLibrary();
     elements.playlistModal.classList.add('hidden');
     showToast(`Created playlist "${name}"`);
@@ -1303,9 +1607,9 @@ function openAddToPlaylistModal(track) {
   
   if (!state.playlists.length) {
     elements.playlistModalBody.innerHTML = `
-      <p style="color:var(--text-dim);font-size:0.9rem;margin-bottom:12px;">You haven't created any playlists yet.</p>
-      <input type="text" id="quick-playlist-input" placeholder="New Playlist Name" class="modal-input">
-      <button class="modal-action-btn" id="quick-create-btn">Create & Add</button>
+      <p style="color:var(--text-secondary);font-size:0.85rem;margin-bottom:12px;">No playlists created yet.</p>
+      <input type="text" id="quick-playlist-input" placeholder="Playlist Name" class="modal-input">
+      <button class="primary-lime-btn full" id="quick-create-btn">Create & Add</button>
     `;
     elements.playlistModal.classList.remove('hidden');
     document.getElementById('quick-create-btn').onclick = () => {
@@ -1314,10 +1618,11 @@ function openAddToPlaylistModal(track) {
       const newPl = {
         id: 'pl_' + Date.now(),
         name,
+        type: 'user',
         image: track.image || '/assets/BloomeeLogoFG.png',
         tracks: [track]
       };
-      state.playlists.push(newPl);
+      state.playlists.unshift(newPl);
       saveLibrary();
       elements.playlistModal.classList.add('hidden');
       showToast(`Added to "${name}"`);
@@ -1365,14 +1670,85 @@ elements.modalCloseBtn.addEventListener('click', () => {
 });
 
 // ---------------------------------------------------------------------------
+// Spotify & YouTube Playlist Importer
+// ---------------------------------------------------------------------------
+function openImportModal(source = 'spotify') {
+  currentImportSource = source;
+  elements.importTabSpotify.classList.toggle('active', source === 'spotify');
+  elements.importTabYoutube.classList.toggle('active', source === 'youtube');
+
+  if (source === 'spotify') {
+    elements.importHint.textContent = 'Paste any Spotify Playlist, Album, or Track URL:';
+    elements.importUrlInput.placeholder = 'https://open.spotify.com/playlist/...';
+  } else {
+    elements.importHint.textContent = 'Paste any YouTube or YouTube Music Playlist URL:';
+    elements.importUrlInput.placeholder = 'https://www.youtube.com/playlist?list=...';
+  }
+
+  elements.importUrlInput.value = '';
+  elements.importStatusBox.classList.add('hidden');
+  elements.importModal.classList.remove('hidden');
+  elements.importUrlInput.focus();
+}
+
+elements.headerImportBtn.addEventListener('click', () => openImportModal('spotify'));
+elements.libraryImportBtn.addEventListener('click', () => openImportModal('spotify'));
+if (elements.settingsOpenImportBtn) {
+  elements.settingsOpenImportBtn.addEventListener('click', () => openImportModal('spotify'));
+}
+
+elements.importModalClose.addEventListener('click', () => {
+  elements.importModal.classList.add('hidden');
+});
+
+elements.importTabSpotify.addEventListener('click', () => openImportModal('spotify'));
+elements.importTabYoutube.addEventListener('click', () => openImportModal('youtube'));
+
+elements.importSubmitBtn.addEventListener('click', async () => {
+  const url = elements.importUrlInput.value.trim();
+  if (!url) return;
+
+  elements.importStatusBox.classList.remove('hidden');
+  elements.importStatusText.textContent = 'Connecting and fetching tracks...';
+
+  const endpoint = currentImportSource === 'spotify' ? '/api/import/spotify' : '/api/import/youtube';
+
+  try {
+    const res = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url })
+    });
+    const data = await res.json();
+
+    if (data.success && data.playlist) {
+      const pl = {
+        ...data.playlist,
+        type: 'imported'
+      };
+      state.playlists.unshift(pl);
+      saveLibrary();
+
+      elements.importModal.classList.add('hidden');
+      showToast(`Imported "${pl.name}" (${pl.tracks.length} tracks)!`);
+      loadDetailsView('imported', pl.id);
+    } else {
+      elements.importStatusText.textContent = data.error || 'Failed to import. Check URL and try again.';
+    }
+  } catch (err) {
+    elements.importStatusText.textContent = 'Error connecting to importer service.';
+  }
+});
+
+// ---------------------------------------------------------------------------
 // Settings Handlers
 // ---------------------------------------------------------------------------
 elements.settingQuality.value = state.audioQuality;
 elements.settingQuality.addEventListener('change', () => {
   state.audioQuality = elements.settingQuality.value;
-  localStorage.setItem('bloomee_quality', state.audioQuality);
+  localStorage.setItem('zylo_quality', state.audioQuality);
   if (state.currentTrack) {
-    elements.playerQualityBadge.textContent = `${state.audioQuality} KBPS AAC`;
+    elements.playerQualityBadge.textContent = `${state.audioQuality} KBPS`;
   }
   showToast(`Streaming quality set to ${state.audioQuality} kbps`);
 });
@@ -1380,45 +1756,53 @@ elements.settingQuality.addEventListener('change', () => {
 elements.settingAutoplay.checked = state.autoplay;
 elements.settingAutoplay.addEventListener('change', () => {
   state.autoplay = elements.settingAutoplay.checked;
-  localStorage.setItem('bloomee_autoplay', state.autoplay);
+  localStorage.setItem('zylo_autoplay', state.autoplay);
   showToast(`Autoplay ${state.autoplay ? 'enabled' : 'disabled'}`);
 });
 
-elements.settingSleepTimer.addEventListener('change', () => {
-  clearTimeout(state.sleepTimerTimeout);
-  const minutes = parseInt(elements.settingSleepTimer.value, 10);
-  if (minutes > 0) {
-    elements.sleepTimerDesc.textContent = `Stopping in ${minutes} minutes`;
-    state.sleepTimerTimeout = setTimeout(() => {
-      elements.audio.pause();
-      state.isPlaying = false;
-      updatePlayPauseIcons();
-      elements.settingSleepTimer.value = '0';
-      elements.sleepTimerDesc.textContent = 'Off';
-      showToast('Sleep timer expired. Music paused.');
-    }, minutes * 60 * 1000);
-    showToast(`Sleep timer set for ${minutes} minutes`);
-  } else {
-    elements.sleepTimerDesc.textContent = 'Off';
-    showToast('Sleep timer cancelled');
-  }
+// ---------------------------------------------------------------------------
+// First-Time PWA Install Prompt
+// ---------------------------------------------------------------------------
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
 });
 
-// ---------------------------------------------------------------------------
-// iOS Safari PWA Banner & Standalone Detection
-// ---------------------------------------------------------------------------
-function checkIOSPWA() {
-  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+function checkFirstTimePWA() {
+  const prompted = localStorage.getItem('zylo_pwa_prompted');
   const isStandalone = window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches;
 
-  if (isIOS && !isStandalone) {
-    elements.iosInstallBanner.classList.remove('hidden');
+  if (!prompted && !isStandalone) {
+    setTimeout(() => {
+      elements.pwaInstallModal.classList.remove('hidden');
+    }, 1200);
   }
 }
 
-elements.iosBannerClose.addEventListener('click', () => {
-  elements.iosInstallBanner.classList.add('hidden');
+elements.pwaConfirmBtn.addEventListener('click', async () => {
+  localStorage.setItem('zylo_pwa_prompted', 'true');
+  elements.pwaInstallModal.classList.add('hidden');
+
+  if (deferredPrompt) {
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    deferredPrompt = null;
+    if (outcome === 'accepted') showToast('Thank you for installing Zylo!');
+  } else {
+    showToast('Follow the steps to add Zylo to your Home Screen!');
+  }
 });
+
+elements.pwaDismissBtn.addEventListener('click', () => {
+  localStorage.setItem('zylo_pwa_prompted', 'true');
+  elements.pwaInstallModal.classList.add('hidden');
+});
+
+if (elements.triggerPwaGuideBtn) {
+  elements.triggerPwaGuideBtn.addEventListener('click', () => {
+    elements.pwaInstallModal.classList.remove('hidden');
+  });
+}
 
 // ---------------------------------------------------------------------------
 // Keyboard Shortcuts
@@ -1431,7 +1815,7 @@ window.addEventListener('keydown', (e) => {
     togglePlayPause();
   } else if (e.key === 'k' && (e.metaKey || e.ctrlKey)) {
     e.preventDefault();
-    navigateTo('search');
+    navigateTo('explore');
     elements.searchInput.focus();
   } else if (e.key === 'ArrowRight' && (e.metaKey || e.ctrlKey)) {
     e.preventDefault();
@@ -1442,6 +1826,9 @@ window.addEventListener('keydown', (e) => {
   } else if (e.key === 'Escape') {
     elements.fullPlayer.classList.add('hidden');
     elements.playlistModal.classList.add('hidden');
+    elements.importModal.classList.add('hidden');
+    elements.sleepTimerModal.classList.add('hidden');
+    elements.pwaInstallModal.classList.add('hidden');
   }
 });
 
@@ -1450,13 +1837,12 @@ window.addEventListener('keydown', (e) => {
 // ---------------------------------------------------------------------------
 window.addEventListener('DOMContentLoaded', () => {
   updateLibraryUI();
-  loadExploreData();
-  checkIOSPWA();
+  loadHomeData();
+  checkFirstTimePWA();
 
-  // Register Service Worker for PWA
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/sw.js').catch(err => {
-      console.log('ServiceWorker registration skipped:', err);
+      console.log('SW registration:', err);
     });
   }
 });

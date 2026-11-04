@@ -13,7 +13,7 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
 // ---------------------------------------------------------------------------
-// JioSaavn Helpers & Cryptography
+// Music Helpers & Cryptography (Zylo Music Engine)
 // ---------------------------------------------------------------------------
 const SAAVN_BASE = 'https://www.jiosaavn.com/api.php';
 const DES_KEY = Buffer.from('38346591', 'utf8');
@@ -46,14 +46,12 @@ function decryptSaavnMediaUrl(enc) {
     dec = dec.replace(/\.mp4.*/, '').replace(/\.m4a.*/, '').replace('http:', 'https:');
     return dec;
   } catch (err) {
-    console.error('DES decrypt error:', err.message);
     return null;
   }
 }
 
 function getStreamVariants(decryptedBase) {
   if (!decryptedBase) return {};
-  // Check if it already has bitrate suffix like _96 or _160
   const cleanBase = decryptedBase.replace(/_(12|48|96|160|320)$/, '');
   return {
     '320': `${cleanBase}_320.mp4`,
@@ -138,7 +136,6 @@ async function fetchSaavn(call, params = {}) {
   try {
     return JSON.parse(text);
   } catch (err) {
-    // Sometimes Saavn returns trailing HTML or garbage
     const jsonStart = text.indexOf('{');
     const jsonEnd = text.lastIndexOf('}');
     if (jsonStart !== -1 && jsonEnd !== -1) {
@@ -152,7 +149,7 @@ async function fetchSaavn(call, params = {}) {
 // API Endpoints
 // ---------------------------------------------------------------------------
 
-// 1. Homepage: Featured playlists, Top charts, New albums, Trending
+// 1. Homepage: Curated & Trending, Daily Playlists, Top Charts, New Releases
 app.get('/api/home', async (req, res) => {
   try {
     const data = await fetchSaavn('content.getHomepageData');
@@ -183,13 +180,13 @@ app.get('/api/home', async (req, res) => {
       type: 'album'
     }));
 
-    // Fetch popular trending songs to show directly in Trending
+    // Pre-fetch top trending songs
     let trendingSongs = [];
     if (charts.length > 0) {
       try {
         const chartDetails = await fetchSaavn('playlist.getDetails', { listid: charts[0].id });
         const songsList = chartDetails.songs || chartDetails.list || [];
-        trendingSongs = songsList.slice(0, 15).map(formatTrack).filter(Boolean);
+        trendingSongs = songsList.slice(0, 20).map(formatTrack).filter(Boolean);
       } catch (e) {
         console.error('Failed to pre-fetch top chart songs:', e.message);
       }
@@ -274,7 +271,7 @@ app.get('/api/suggestions', async (req, res) => {
 app.get('/api/search', async (req, res) => {
   const query = req.query.q;
   const page = req.query.p || 1;
-  const limit = req.query.n || 20;
+  const limit = req.query.n || 24;
   if (!query) return res.json({ success: true, results: [] });
 
   try {
@@ -432,10 +429,23 @@ app.get('/api/artist/:id', async (req, res) => {
   }
 });
 
-// 8. Related songs / Auto-radio recommendations
-app.get('/api/recommendations', async (req, res) => {
+// 8. Recommendations & Radio
+app.get(['/api/recommendations', '/api/radio'], async (req, res) => {
   const songId = req.query.id;
-  if (!songId) return res.json({ success: true, recommendations: [] });
+  if (!songId) {
+    // Return general top radio tracks
+    try {
+      const data = await fetchSaavn('content.getHomepageData');
+      const chartId = data.charts?.[0]?.listid || '946682072';
+      const chartDetails = await fetchSaavn('playlist.getDetails', { listid: chartId });
+      const rawSongs = chartDetails.songs || chartDetails.list || [];
+      const recommendations = rawSongs.slice(0, 30).map(formatTrack).filter(Boolean);
+      return res.json({ success: true, recommendations });
+    } catch (e) {
+      return res.json({ success: true, recommendations: [] });
+    }
+  }
+
   try {
     const data = await fetchSaavn('reco.getreco', { pid: songId });
     let rawList = [];
@@ -451,13 +461,12 @@ app.get('/api/recommendations', async (req, res) => {
   }
 });
 
-// 9. Synced & Plain Lyrics (from LRCLIB + JioSaavn fallback)
+// 9. Synced & Plain Lyrics (from LRCLIB + Saavn)
 app.get('/api/lyrics', async (req, res) => {
   const { title, artist, duration } = req.query;
   if (!title) return res.status(400).json({ success: false, error: 'Title required' });
 
   try {
-    // Clean track title (strip feat, remastered, etc.)
     const cleanTitle = title
       .replace(/\s*\(.*?(feat|ft|remastered|version|from|bonus|official).*?\)/gi, '')
       .replace(/\s*\[.*?\]/gi, '')
@@ -475,7 +484,7 @@ app.get('/api/lyrics', async (req, res) => {
 
     const lrcRes = await fetch(lrclibUrl.toString(), {
       headers: {
-        'User-Agent': 'BloomeeTunes-Web/1.0.0 (https://github.com/HemantKArya/BloomeeTunes)'
+        'User-Agent': 'ZyloMusic/1.0.0 (https://github.com/HemantKArya/BloomeeTunes)'
       }
     });
 
@@ -488,13 +497,11 @@ app.get('/api/lyrics', async (req, res) => {
       });
     }
 
-    // Try search endpoint on LRCLIB
+    // Try search endpoint
     const searchUrl = new URL('https://lrclib.net/api/search');
     searchUrl.searchParams.set('q', `${cleanTitle} ${cleanArtist}`);
     const searchRes = await fetch(searchUrl.toString(), {
-      headers: {
-        'User-Agent': 'BloomeeTunes-Web/1.0.0'
-      }
+      headers: { 'User-Agent': 'ZyloMusic/1.0.0' }
     });
 
     if (searchRes.ok) {
@@ -515,7 +522,257 @@ app.get('/api/lyrics', async (req, res) => {
   }
 });
 
-// 10. iOS-friendly Audio Stream Proxy with Full HTTP Range Support (206 Partial Content)
+// 10. Spotify Import Endpoint
+app.post('/api/import/spotify', async (req, res) => {
+  const { url } = req.body;
+  if (!url) return res.status(400).json({ success: false, error: 'Missing Spotify URL' });
+
+  try {
+    const playlistMatch = url.match(/playlist\/([a-zA-Z0-9]+)/);
+    const albumMatch = url.match(/album\/([a-zA-Z0-9]+)/);
+
+    const embedUrl = playlistMatch
+      ? `https://open.spotify.com/embed/playlist/${playlistMatch[1]}`
+      : albumMatch
+      ? `https://open.spotify.com/embed/album/${albumMatch[1]}`
+      : null;
+
+    if (!embedUrl) {
+      return res.status(400).json({ success: false, error: 'Invalid Spotify Playlist or Album URL' });
+    }
+
+    const resp = await fetch(embedUrl, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' }
+    });
+    const html = await resp.text();
+    const match = html.match(/<script id="__NEXT_DATA__" type="application\/json">([\s\S]*?)<\/script>/);
+
+    if (!match) {
+      return res.status(400).json({ success: false, error: 'Could not extract playlist data from Spotify.' });
+    }
+
+    const data = JSON.parse(match[1]);
+    const entity = data.props?.pageProps?.state?.data?.entity;
+    const title = entity?.name || 'Imported Spotify Playlist';
+    const image = entity?.images?.[0]?.url || '/assets/BloomeeLogoFG.png';
+    const rawTracks = entity?.trackList || [];
+
+    // Format tracks
+    const extractedTracks = rawTracks.map(t => ({
+      title: cleanHtml(t.title || ''),
+      artist: cleanHtml(t.subtitle || ''),
+      duration: Math.round((t.duration || 0) / 1000)
+    })).filter(t => t.title);
+
+    // Auto-match top 10 tracks into playable streams immediately
+    const resolvedTracks = [];
+    for (let i = 0; i < Math.min(extractedTracks.length, 10); i++) {
+      try {
+        const item = extractedTracks[i];
+        const searchRes = await fetchSaavn('search.getResults', {
+          q: `${item.title} ${item.artist}`,
+          p: 1,
+          n: 1
+        });
+        const matched = (searchRes.results || []).map(formatTrack).filter(Boolean)[0];
+        if (matched) {
+          resolvedTracks.push(matched);
+        } else {
+          resolvedTracks.push({
+            id: `sp_${Date.now()}_${i}`,
+            title: item.title,
+            artist: item.artist,
+            duration: item.duration,
+            image: image,
+            stream_url: null
+          });
+        }
+      } catch (e) {
+        resolvedTracks.push({
+          id: `sp_${Date.now()}_${i}`,
+          title: extractedTracks[i].title,
+          artist: extractedTracks[i].artist,
+          duration: extractedTracks[i].duration,
+          image: image,
+          stream_url: null
+        });
+      }
+    }
+
+    // Add remaining tracks (will be resolved when clicked/played)
+    for (let i = 10; i < extractedTracks.length; i++) {
+      resolvedTracks.push({
+        id: `sp_${Date.now()}_${i}`,
+        title: extractedTracks[i].title,
+        artist: extractedTracks[i].artist,
+        duration: extractedTracks[i].duration,
+        image: image,
+        stream_url: null
+      });
+    }
+
+    res.json({
+      success: true,
+      playlist: {
+        id: 'sp_pl_' + Date.now(),
+        name: title,
+        image: image,
+        tracks: resolvedTracks
+      }
+    });
+  } catch (err) {
+    console.error('Spotify import error:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 11. YouTube Playlist Import Endpoint
+app.post('/api/import/youtube', async (req, res) => {
+  const { url } = req.body;
+  if (!url) return res.status(400).json({ success: false, error: 'Missing YouTube URL' });
+
+  try {
+    const listMatch = url.match(/[?&]list=([a-zA-Z0-9_-]+)/);
+    const playlistId = listMatch ? listMatch[1] : (url.startsWith('PL') ? url : null);
+
+    if (!playlistId) {
+      return res.status(400).json({ success: false, error: 'Invalid YouTube Playlist URL or ID' });
+    }
+
+    const browseId = 'VL' + playlistId;
+    const body = JSON.stringify({
+      context: {
+        client: {
+          clientName: 'WEB',
+          clientVersion: '2.20231219.01.00',
+          hl: 'en',
+          gl: 'US'
+        }
+      },
+      browseId
+    });
+
+    const ytRes = await fetch('https://www.youtube.com/youtubei/v1/browse?key=AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'Origin': 'https://www.youtube.com',
+        'Referer': 'https://www.youtube.com/'
+      },
+      body
+    });
+
+    const data = await ytRes.json();
+    const title = data.metadata?.playlistMetadataRenderer?.title ||
+                  data.header?.playlistHeaderRenderer?.title?.simpleText ||
+                  data.header?.playlistHeaderRenderer?.title?.runs?.[0]?.text ||
+                  'Imported YouTube Playlist';
+
+    const tabs = data.contents?.twoColumnBrowseResultsRenderer?.tabs;
+    const sectionList = tabs?.[0]?.tabRenderer?.content?.sectionListRenderer?.contents;
+    const itemSectionContents = sectionList?.[0]?.itemSectionRenderer?.contents || [];
+
+    const extractedTracks = [];
+    itemSectionContents.forEach(item => {
+      const lockup = item.lockupViewModel;
+      if (lockup) {
+        const meta = lockup.metadata?.lockupMetadataViewModel;
+        const songTitle = meta?.title?.content;
+        const artist = meta?.metadata?.contentMetadataViewModel?.metadataRows?.[0]?.metadataParts?.[0]?.text?.content || '';
+        if (songTitle) {
+          extractedTracks.push({ title: cleanHtml(songTitle), artist: cleanHtml(artist) });
+        }
+      }
+    });
+
+    if (!extractedTracks.length) {
+      return res.status(400).json({ success: false, error: 'No songs found in this YouTube Playlist' });
+    }
+
+    // Auto-match first 10 tracks
+    const resolvedTracks = [];
+    for (let i = 0; i < Math.min(extractedTracks.length, 10); i++) {
+      try {
+        const item = extractedTracks[i];
+        const searchRes = await fetchSaavn('search.getResults', {
+          q: `${item.title} ${item.artist}`,
+          p: 1,
+          n: 1
+        });
+        const matched = (searchRes.results || []).map(formatTrack).filter(Boolean)[0];
+        if (matched) {
+          resolvedTracks.push(matched);
+        } else {
+          resolvedTracks.push({
+            id: `yt_${Date.now()}_${i}`,
+            title: item.title,
+            artist: item.artist,
+            duration: 210,
+            image: '/assets/BloomeeLogoFG.png',
+            stream_url: null
+          });
+        }
+      } catch (e) {
+        resolvedTracks.push({
+          id: `yt_${Date.now()}_${i}`,
+          title: extractedTracks[i].title,
+          artist: extractedTracks[i].artist,
+          duration: 210,
+          image: '/assets/BloomeeLogoFG.png',
+          stream_url: null
+        });
+      }
+    }
+
+    for (let i = 10; i < extractedTracks.length; i++) {
+      resolvedTracks.push({
+        id: `yt_${Date.now()}_${i}`,
+        title: extractedTracks[i].title,
+        artist: extractedTracks[i].artist,
+        duration: 210,
+        image: '/assets/BloomeeLogoFG.png',
+        stream_url: null
+      });
+    }
+
+    res.json({
+      success: true,
+      playlist: {
+        id: 'yt_pl_' + Date.now(),
+        name: title,
+        image: '/assets/BloomeeLogoFG.png',
+        tracks: resolvedTracks
+      }
+    });
+  } catch (err) {
+    console.error('YouTube import error:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 12. Lazy Resolution endpoint (for imported tracks that need stream URLs when played)
+app.get('/api/resolve', async (req, res) => {
+  const { title, artist } = req.query;
+  if (!title) return res.status(400).json({ success: false });
+
+  try {
+    const searchRes = await fetchSaavn('search.getResults', {
+      q: `${title} ${artist || ''}`,
+      p: 1,
+      n: 1
+    });
+    const matched = (searchRes.results || []).map(formatTrack).filter(Boolean)[0];
+    if (matched) {
+      return res.json({ success: true, track: matched });
+    }
+    res.json({ success: false });
+  } catch (err) {
+    res.json({ success: false, error: err.message });
+  }
+});
+
+// 13. iOS-friendly Audio Stream Proxy with Full HTTP Range Support (206 Partial Content)
 app.get('/api/stream', (req, res) => {
   const targetUrl = req.query.url;
   if (!targetUrl) return res.status(400).send('Missing url parameter');
@@ -541,10 +798,8 @@ app.get('/api/stream', (req, res) => {
     method: 'GET',
     headers: headers
   }, (proxyRes) => {
-    // Forward status code (e.g. 206 Partial Content or 200 OK)
     res.status(proxyRes.statusCode);
 
-    // Forward crucial range & content headers
     const forwardHeaders = [
       'content-type',
       'content-length',
@@ -569,7 +824,6 @@ app.get('/api/stream', (req, res) => {
   });
 
   proxyReq.on('error', (err) => {
-    console.error('Audio stream proxy error:', err.message);
     if (!res.headersSent) {
       res.status(502).send('Error streaming audio');
     }
@@ -582,7 +836,7 @@ app.get('/api/stream', (req, res) => {
   proxyReq.end();
 });
 
-// Fallback route to serve SPA for any unhandled routes
+// Fallback route to serve SPA
 app.use((req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
@@ -592,7 +846,8 @@ app.use((req, res) => {
 // ---------------------------------------------------------------------------
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`\n======================================================`);
-  console.log(`🎵 BloomeeTunes Web Server is running!`);
+  console.log(`🎵 Zylo Music Server is running!`);
+  console.log(`Created by infas.mk`);
   console.log(`Local Access:       http://localhost:${PORT}`);
   console.log(`iOS / Wi-Fi Access: http://172.20.10.2:${PORT}`);
   console.log(`======================================================\n`);
