@@ -62,6 +62,7 @@ const elements = {
   headerImportBtn: document.getElementById('header-import-btn'),
   headerSearchBtn: document.getElementById('header-search-btn'),
   headerFavoritesBtn: document.getElementById('header-favorites-btn'),
+  headerReloadBtn: document.getElementById('header-reload-btn'),
 
   // Views
   views: {
@@ -222,6 +223,7 @@ const elements = {
   settingsCardStorage: document.getElementById('settings-card-storage'),
   settingsCardImport: document.getElementById('settings-card-import'),
   settingsCardInstall: document.getElementById('settings-card-install'),
+  settingsCardReload: document.getElementById('settings-card-reload'),
   settingsCardAbout: document.getElementById('settings-card-about'),
 
   subpageQuality: document.getElementById('subpage-quality'),
@@ -229,6 +231,7 @@ const elements = {
   subpageStorage: document.getElementById('subpage-storage'),
   subpageImport: document.getElementById('subpage-import'),
   subpageInstall: document.getElementById('subpage-install'),
+  subpageReload: document.getElementById('subpage-reload'),
   subpageAbout: document.getElementById('subpage-about'),
 
   backFromQuality: document.getElementById('back-from-quality'),
@@ -236,7 +239,9 @@ const elements = {
   backFromStorage: document.getElementById('back-from-storage'),
   backFromImport: document.getElementById('back-from-import'),
   backFromInstall: document.getElementById('back-from-install'),
+  backFromReload: document.getElementById('back-from-reload'),
   backFromAbout: document.getElementById('back-from-about'),
+  btnExecuteForceReload: document.getElementById('btn-execute-force-reload'),
 
   // Settings Controls
   qualityRadioCards: document.querySelectorAll('#subpage-quality .radio-card'),
@@ -2474,6 +2479,50 @@ elements.importSubmitBtn.addEventListener('click', async () => {
 });
 
 // ---------------------------------------------------------------------------
+// Force Reload & Update App (Preserves Likes, Playlists & Downloads)
+// ---------------------------------------------------------------------------
+async function forceReloadApp() {
+  showToast('Purging cache & fetching latest code...');
+  try {
+    // 1. Unregister active service worker registrations so fresh sw.js is fetched
+    if ('serviceWorker' in navigator) {
+      const registrations = await navigator.serviceWorker.getRegistrations();
+      for (const reg of registrations) {
+        try {
+          await reg.update();
+          await reg.unregister();
+        } catch (e) {
+          console.warn('SW unregister error:', e);
+        }
+      }
+    }
+
+    // 2. Clear all Service Worker HTTP caches
+    if ('caches' in window) {
+      const cacheNames = await caches.keys();
+      await Promise.all(cacheNames.map(name => caches.delete(name)));
+    }
+
+    // NOTE: localStorage & IndexedDB are completely untouched!
+    // All liked songs, playlists, downloads, and user settings stay 100% safe.
+    showToast('Updated! Reloading Zylo...');
+    setTimeout(() => {
+      const cleanUrl = window.location.origin + window.location.pathname;
+      window.location.href = cleanUrl + '?reload=' + Date.now();
+    }, 400);
+  } catch (err) {
+    console.error('Force reload error:', err);
+    window.location.reload();
+  }
+}
+
+if (elements.headerReloadBtn) {
+  elements.headerReloadBtn.addEventListener('click', () => {
+    forceReloadApp();
+  });
+}
+
+// ---------------------------------------------------------------------------
 // Settings Drill-Down Navigation & Subpages
 // ---------------------------------------------------------------------------
 function openSettingsSubpage(subpageEl) {
@@ -2485,6 +2534,7 @@ function openSettingsSubpage(subpageEl) {
     elements.subpageStorage,
     elements.subpageImport,
     elements.subpageInstall,
+    elements.subpageReload,
     elements.subpageAbout
   ].forEach(p => p && p.classList.add('hidden'));
 
@@ -2499,6 +2549,7 @@ function closeSettingsSubpage() {
     elements.subpageStorage,
     elements.subpageImport,
     elements.subpageInstall,
+    elements.subpageReload,
     elements.subpageAbout
   ].forEach(p => p && p.classList.add('hidden'));
 
@@ -2540,6 +2591,12 @@ if (elements.settingsCardInstall) {
   });
 }
 
+if (elements.settingsCardReload) {
+  elements.settingsCardReload.addEventListener('click', () => {
+    openSettingsSubpage(elements.subpageReload);
+  });
+}
+
 if (elements.settingsCardAbout) {
   elements.settingsCardAbout.addEventListener('click', () => {
     openSettingsSubpage(elements.subpageAbout);
@@ -2552,7 +2609,14 @@ if (elements.backFromSleep) elements.backFromSleep.addEventListener('click', clo
 if (elements.backFromStorage) elements.backFromStorage.addEventListener('click', closeSettingsSubpage);
 if (elements.backFromImport) elements.backFromImport.addEventListener('click', closeSettingsSubpage);
 if (elements.backFromInstall) elements.backFromInstall.addEventListener('click', closeSettingsSubpage);
+if (elements.backFromReload) elements.backFromReload.addEventListener('click', closeSettingsSubpage);
 if (elements.backFromAbout) elements.backFromAbout.addEventListener('click', closeSettingsSubpage);
+
+if (elements.btnExecuteForceReload) {
+  elements.btnExecuteForceReload.addEventListener('click', () => {
+    forceReloadApp();
+  });
+}
 
 // Subpage: Audio Quality Selector
 elements.qualityRadioCards.forEach(card => {

@@ -46,6 +46,8 @@
 
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
   --nav-height: 64px;
   --mini-player-height: 68px;
 
@@ -63,9 +65,22 @@
   -webkit-tap-highlight-color: transparent;
 }
 
-html, body {
+html {
   width: 100%;
   height: 100%;
+  height: 100dvh;
+  min-height: -webkit-fill-available;
+  overflow: hidden;
+  background-color: var(--bg-main);
+}
+
+body {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  height: 100dvh;
+  min-height: -webkit-fill-available;
   overflow: hidden;
   background-color: var(--bg-main);
   color: var(--text-main);
@@ -74,6 +89,10 @@ html, body {
   -moz-osx-font-smoothing: grayscale;
   user-select: none;
   -webkit-user-select: none;
+  touch-action: pan-y;
+  overscroll-behavior: none;
+  padding-left: var(--safe-left);
+  padding-right: var(--safe-right);
 }
 
 /* ==========================================================================
@@ -166,32 +185,37 @@ html, body {
 
 /* App Shell Container */
 .app-container {
-  position: relative;
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
+  height: 100dvh;
+  min-height: -webkit-fill-available;
   display: flex;
   flex-direction: column;
   z-index: 1;
   max-width: 1280px;
   margin: 0 auto;
+  overflow: hidden;
 }
 
 /* ==========================================================================
    Top Header (Shown on Home Screen)
    ========================================================================== */
 .top-header {
-  height: calc(60px + var(--safe-top));
-  padding-top: var(--safe-top);
-  padding-left: 20px;
-  padding-right: 20px;
+  height: calc(56px + max(var(--safe-top), 10px));
+  padding-top: max(var(--safe-top), 10px);
+  padding-left: max(16px, var(--safe-left));
+  padding-right: max(16px, var(--safe-right));
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: transparent;
+  background: rgba(9, 9, 15, 0.72);
   flex-shrink: 0;
   z-index: 20;
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border-bottom: 1px solid var(--border-color);
   transition: opacity 0.2s ease, transform 0.2s ease;
 }
 
@@ -339,7 +363,8 @@ html, body {
   overflow-y: auto;
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
-  padding-bottom: calc(var(--nav-height) + var(--mini-player-height) + var(--safe-bottom) + 32px);
+  overscroll-behavior-y: contain;
+  padding-bottom: calc(var(--nav-height) + var(--mini-player-height) + max(var(--safe-bottom), 12px) + 36px);
 }
 
 .app-view {
@@ -1482,9 +1507,9 @@ html, body {
    ========================================================================== */
 .mini-player {
   position: fixed;
-  bottom: calc(var(--nav-height) + var(--safe-bottom) + 12px);
-  left: 16px;
-  right: 16px;
+  bottom: calc(var(--nav-height) + max(var(--safe-bottom), 12px) + 8px);
+  left: max(12px, var(--safe-left));
+  right: max(12px, var(--safe-right));
   height: var(--mini-player-height);
   background: var(--bg-glass-elevated);
   backdrop-filter: blur(32px) saturate(190%);
@@ -1658,8 +1683,10 @@ html, body {
   bottom: 0;
   left: 0;
   right: 0;
-  height: calc(var(--nav-height) + var(--safe-bottom));
-  padding-bottom: var(--safe-bottom);
+  height: calc(var(--nav-height) + max(var(--safe-bottom), 12px));
+  padding-bottom: max(var(--safe-bottom), 12px);
+  padding-left: max(8px, var(--safe-left));
+  padding-right: max(8px, var(--safe-right));
   background: var(--bg-glass);
   backdrop-filter: blur(30px) saturate(190%);
   -webkit-backdrop-filter: blur(30px) saturate(190%);
@@ -1723,6 +1750,10 @@ html, body {
 .full-player {
   position: fixed;
   inset: 0;
+  width: 100%;
+  height: 100%;
+  height: 100dvh;
+  min-height: -webkit-fill-available;
   background: #09090F;
   z-index: 100;
   display: flex;
@@ -1767,7 +1798,7 @@ html, body {
   height: 100%;
   display: flex;
   flex-direction: column;
-  padding: calc(var(--safe-top) + 12px) 24px calc(var(--safe-bottom) + 16px) 24px;
+  padding: calc(max(var(--safe-top), 12px) + 8px) max(20px, var(--safe-right)) calc(max(var(--safe-bottom), 12px) + 16px) max(20px, var(--safe-left));
   max-width: 480px;
   margin: 0 auto;
 }

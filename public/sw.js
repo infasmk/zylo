@@ -1,4 +1,4 @@
-const CACHE_NAME = 'zylo-v5';
+const CACHE_NAME = 'zylo-v6';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
@@ -29,8 +29,8 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
-  // Do NOT cache API calls or audio streams
-  if (url.pathname.startsWith('/api/') || event.request.method !== 'GET') {
+  // Do NOT cache API calls, non-GET requests, or force-reload requests
+  if (url.pathname.startsWith('/api/') || event.request.method !== 'GET' || url.searchParams.has('reload')) {
     return;
   }
 

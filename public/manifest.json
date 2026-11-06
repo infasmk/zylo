@@ -4,6 +4,7 @@
   "description": "Premium Dark Music Streaming. Created by infas.mk.",
   "start_url": "/",
   "display": "standalone",
+  "display_override": ["standalone", "fullscreen", "minimal-ui"],
   "orientation": "portrait-primary",
   "background_color": "#09090F",
   "theme_color": "#09090F",

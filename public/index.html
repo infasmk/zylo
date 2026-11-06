@@ -2,14 +2,18 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, shrink-to-fit=no">
   <title>Zylo — Premium Music Streaming</title>
   
   <!-- iOS PWA & Mobile Web App Meta -->
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Zylo">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-touch-fullscreen" content="yes">
+  <meta name="format-detection" content="telephone=no">
   <meta name="theme-color" content="#09090F">
+  <meta name="msapplication-navbutton-color" content="#09090F">
   <meta name="description" content="Zylo Music — Premium Dark Music Streaming Experience. Created by infas.mk.">
 
   <!-- Icons -->
@@ -51,6 +55,15 @@
       </div>
 
       <div class="header-actions">
+        <!-- Force Reload & Update Code Button -->
+        <button class="header-icon-btn" id="header-reload-btn" title="Force Reload & Update Code" aria-label="Force Reload">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M23 4v6h-6"></path>
+            <path d="M1 20v-6h6"></path>
+            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+          </svg>
+        </button>
+
         <!-- Search Button (Switches smoothly to Explore) -->
         <button class="header-icon-btn" id="header-search-btn" title="Search" aria-label="Search">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -354,7 +367,25 @@
               <svg class="chevron-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg>
             </button>
 
-            <!-- Card 6: About Zylo -->
+            <!-- Card 6: Force Reload & Update App -->
+            <button class="settings-nav-card" id="settings-card-reload" type="button">
+              <div class="settings-card-left">
+                <div class="card-icon-wrap lime">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M23 4v6h-6"></path>
+                    <path d="M1 20v-6h6"></path>
+                    <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                  </svg>
+                </div>
+                <div class="card-title-group">
+                  <h3>Force Reload & Update</h3>
+                  <span>Fetch newest code • Keep likes & playlists</span>
+                </div>
+              </div>
+              <svg class="chevron-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg>
+            </button>
+
+            <!-- Card 7: About Zylo -->
             <button class="settings-nav-card" id="settings-card-about" type="button">
               <div class="settings-card-left">
                 <div class="card-icon-wrap lime">
@@ -362,7 +393,7 @@
                 </div>
                 <div class="card-title-group">
                   <h3>About Zylo</h3>
-                  <span>v3.2.0 • Created by infas.mk</span>
+                  <span>v3.3.0 • Created by infas.mk</span>
                 </div>
               </div>
               <svg class="chevron-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg>
@@ -607,6 +638,47 @@
 
             <div class="about-footer-credits">
               <p>© 2026 Zylo Music. Designed & Crafted with ❤️ by infas.mk</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- ============================================================== -->
+        <!-- SUB-PAGE 7: FORCE RELOAD & UPDATE -->
+        <!-- ============================================================== -->
+        <div id="subpage-reload" class="settings-subpage hidden">
+          <div class="subpage-top-bar">
+            <button class="settings-back-btn" id="back-from-reload" type="button">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"></polyline></svg>
+              <span>Settings</span>
+            </button>
+            <h2 class="subpage-title">Force Reload & Update</h2>
+          </div>
+
+          <div class="subpage-content">
+            <div class="about-hero-card" style="text-align: center; padding: 28px 20px;">
+              <div class="card-icon-wrap lime" style="width: 68px; height: 68px; margin: 0 auto 16px auto;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 32px; height: 32px;"><path d="M23 4v6h-6"></path><path d="M1 20v-6h6"></path><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+              </div>
+              <h3 style="font-size: 1.25rem; font-weight: 800; margin-bottom: 8px;">Fetch Latest Deployed Code</h3>
+              <p class="subpage-desc" style="max-width: 360px; margin: 0 auto 20px auto;">
+                Safely purges cached browser assets and updates the Service Worker with the freshest server code.
+              </p>
+
+              <div class="subpage-card text-left" style="margin-bottom: 24px; text-align: left;">
+                <h4 style="font-size: 0.95rem; font-weight: 700; margin-bottom: 12px; color: var(--accent-lime);">Data Safety Guarantee</h4>
+                <div style="display: flex; flex-direction: column; gap: 8px; font-size: 0.88rem; color: var(--text-secondary);">
+                  <div>✅ <strong>Liked Songs:</strong> 100% Preserved in local storage</div>
+                  <div>✅ <strong>Custom & Imported Playlists:</strong> 100% Preserved</div>
+                  <div>✅ <strong>Offline Downloads:</strong> 100% Preserved in IndexedDB</div>
+                  <div>✅ <strong>Listening History:</strong> 100% Preserved</div>
+                  <div>🔄 <strong>Web Assets & Service Worker:</strong> Freshly re-fetched from server</div>
+                </div>
+              </div>
+
+              <button class="primary-pill-btn" id="btn-execute-force-reload" type="button" style="width: 100%; justify-content: center; height: 50px; font-size: 1rem; font-weight: 700;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="width: 20px; height: 20px;"><path d="M23 4v6h-6"></path><path d="M1 20v-6h6"></path><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+                <span>Force Reload Latest Code</span>
+              </button>
             </div>
           </div>
         </div>

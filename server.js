@@ -15,7 +15,11 @@ app.use(express.static(path.join(__dirname, 'public')));
 // ---------------------------------------------------------------------------
 // Music Helpers & Cryptography (Zylo Music Engine)
 // ---------------------------------------------------------------------------
-const SAAVN_BASE = 'https://www.jiosaavn.com/api.php';
+const SAAVN_ENDPOINTS = [
+  'https://api.jiosaavn.com/api.php',
+  'https://www.jiosaavn.com/api.php'
+];
+const SAAVN_BASE = SAAVN_ENDPOINTS[0];
 const DES_KEY = Buffer.from('38346591', 'utf8');
 
 function decryptSaavnMediaUrl(enc) {
@@ -123,27 +127,47 @@ async function fetchSaavn(call, params = {}) {
     _marker: '0',
     ctx: 'web6dot0',
     api_version: '4',
+    cc: 'in',
+    geo: 'in',
+    includeMetaTags: '1',
+    languages: 'malayalam,tamil,hindi,english,telugu,punjabi,kannada,bengali,marathi,gujarati,bhojpuri',
     ...params
   });
-  const url = `${SAAVN_BASE}?${query.toString()}`;
-  const res = await fetch(url, {
-    headers: {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      'Accept': 'application/json',
-      'cookie': 'L=english%2Chindi%2Cmalayalam%2Ctamil%2Ctelugu%2Cpunjabi%2Ckannada%2Cbhojpuri%2Cbengali%2Cmarathi%2Cgujarati; gdpr_acceptance=true; DL=english'
+
+  const headers = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'Accept': 'application/json, text/plain, */*',
+    'X-Forwarded-For': '49.36.0.1',
+    'Client-IP': '49.36.0.1',
+    'X-Real-IP': '49.36.0.1',
+    'CF-IPCountry': 'IN',
+    'cookie': 'L=english%2Chindi%2Cmalayalam%2Ctamil%2Ctelugu%2Cpunjabi%2Ckannada%2Cbhojpuri%2Cbengali%2Cmarathi%2Cgujarati; gdpr_acceptance=true; DL=english; cc=in; geo=in'
+  };
+
+  let lastErr = null;
+  for (const base of SAAVN_ENDPOINTS) {
+    try {
+      const url = `${base}?${query.toString()}`;
+      const res = await fetch(url, {
+        headers,
+        signal: AbortSignal.timeout(6500)
+      });
+      const text = await res.text();
+      try {
+        return JSON.parse(text);
+      } catch (err) {
+        const jsonStart = text.indexOf('{');
+        const jsonEnd = text.lastIndexOf('}');
+        if (jsonStart !== -1 && jsonEnd !== -1) {
+          return JSON.parse(text.slice(jsonStart, jsonEnd + 1));
+        }
+      }
+    } catch (err) {
+      lastErr = err;
     }
-  });
-  const text = await res.text();
-  try {
-    return JSON.parse(text);
-  } catch (err) {
-    const jsonStart = text.indexOf('{');
-    const jsonEnd = text.lastIndexOf('}');
-    if (jsonStart !== -1 && jsonEnd !== -1) {
-      return JSON.parse(text.slice(jsonStart, jsonEnd + 1));
-    }
-    throw err;
   }
+
+  throw lastErr || new Error('All Saavn endpoints failed');
 }
 
 // ---------------------------------------------------------------------------
@@ -966,24 +990,28 @@ app.use((req, res) => {
 });
 
 // ---------------------------------------------------------------------------
-// Server Startup
+// Server Startup & Serverless Export
 // ---------------------------------------------------------------------------
-const primaryServer = app.listen(PORT, '0.0.0.0', () => {
-  console.log(`\n======================================================`);
-  console.log(`🎵 Zylo Music Server is running!`);
-  console.log(`Created by infas.mk`);
-  console.log(`Local Access:       http://localhost:${PORT} or http://127.0.0.1:${PORT}`);
-  console.log(`iOS / Wi-Fi Access: http://172.20.10.2:${PORT}`);
-  console.log(`Secondary Access:   http://localhost:3005`);
-  console.log(`======================================================\n`);
-});
+module.exports = app;
 
-primaryServer.on('error', (err) => {
-  console.error(`Port ${PORT} error:`, err.message);
-});
+if (!process.env.VERCEL) {
+  const primaryServer = app.listen(PORT, '0.0.0.0', () => {
+    console.log(`\n======================================================`);
+    console.log(`🎵 Zylo Music Server is running!`);
+    console.log(`Created by infas.mk`);
+    console.log(`Local Access:       http://localhost:${PORT} or http://127.0.0.1:${PORT}`);
+    console.log(`iOS / Wi-Fi Access: http://172.20.10.2:${PORT}`);
+    console.log(`Secondary Access:   http://localhost:3005`);
+    console.log(`======================================================\n`);
+  });
 
-// Also listen on 3005 so localhost won't collide with any IPv6 apps on port 3000
-const altServer = app.listen(3005, '0.0.0.0', () => {
-  console.log(`Zylo also active on http://localhost:3005`);
-});
-altServer.on('error', () => {});
+  primaryServer.on('error', (err) => {
+    console.error(`Port ${PORT} error:`, err.message);
+  });
+
+  // Also listen on 3005 so localhost won't collide with any IPv6 apps on port 3000
+  const altServer = app.listen(3005, '0.0.0.0', () => {
+    console.log(`Zylo also active on http://localhost:3005`);
+  });
+  altServer.on('error', () => {});
+}
