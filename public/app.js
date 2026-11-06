@@ -222,7 +222,6 @@ const elements = {
   settingsCardSleep: document.getElementById('settings-card-sleep'),
   settingsCardStorage: document.getElementById('settings-card-storage'),
   settingsCardImport: document.getElementById('settings-card-import'),
-  settingsCardInstall: document.getElementById('settings-card-install'),
   settingsCardReload: document.getElementById('settings-card-reload'),
   settingsCardAbout: document.getElementById('settings-card-about'),
 
@@ -230,7 +229,6 @@ const elements = {
   subpageSleep: document.getElementById('subpage-sleep'),
   subpageStorage: document.getElementById('subpage-storage'),
   subpageImport: document.getElementById('subpage-import'),
-  subpageInstall: document.getElementById('subpage-install'),
   subpageReload: document.getElementById('subpage-reload'),
   subpageAbout: document.getElementById('subpage-about'),
 
@@ -238,7 +236,6 @@ const elements = {
   backFromSleep: document.getElementById('back-from-sleep'),
   backFromStorage: document.getElementById('back-from-storage'),
   backFromImport: document.getElementById('back-from-import'),
-  backFromInstall: document.getElementById('back-from-install'),
   backFromReload: document.getElementById('back-from-reload'),
   backFromAbout: document.getElementById('back-from-about'),
   btnExecuteForceReload: document.getElementById('btn-execute-force-reload'),
@@ -1086,6 +1083,7 @@ function updatePlayerUI() {
 
   // Reveal mini player
   elements.miniPlayer.classList.remove('hidden');
+  document.body.classList.remove('mini-player-hidden');
 
   // Mini Player
   elements.miniCover.src = track.image || '/assets/zylo_logo.png';
@@ -2533,7 +2531,6 @@ function openSettingsSubpage(subpageEl) {
     elements.subpageSleep,
     elements.subpageStorage,
     elements.subpageImport,
-    elements.subpageInstall,
     elements.subpageReload,
     elements.subpageAbout
   ].forEach(p => p && p.classList.add('hidden'));
@@ -2548,7 +2545,6 @@ function closeSettingsSubpage() {
     elements.subpageSleep,
     elements.subpageStorage,
     elements.subpageImport,
-    elements.subpageInstall,
     elements.subpageReload,
     elements.subpageAbout
   ].forEach(p => p && p.classList.add('hidden'));
@@ -2585,12 +2581,6 @@ if (elements.settingsCardImport) {
   });
 }
 
-if (elements.settingsCardInstall) {
-  elements.settingsCardInstall.addEventListener('click', () => {
-    openSettingsSubpage(elements.subpageInstall);
-  });
-}
-
 if (elements.settingsCardReload) {
   elements.settingsCardReload.addEventListener('click', () => {
     openSettingsSubpage(elements.subpageReload);
@@ -2608,7 +2598,6 @@ if (elements.backFromQuality) elements.backFromQuality.addEventListener('click',
 if (elements.backFromSleep) elements.backFromSleep.addEventListener('click', closeSettingsSubpage);
 if (elements.backFromStorage) elements.backFromStorage.addEventListener('click', closeSettingsSubpage);
 if (elements.backFromImport) elements.backFromImport.addEventListener('click', closeSettingsSubpage);
-if (elements.backFromInstall) elements.backFromInstall.addEventListener('click', closeSettingsSubpage);
 if (elements.backFromReload) elements.backFromReload.addEventListener('click', closeSettingsSubpage);
 if (elements.backFromAbout) elements.backFromAbout.addEventListener('click', closeSettingsSubpage);
 
@@ -2843,6 +2832,9 @@ document.querySelectorAll('.modal-overlay').forEach(modal => {
 // Initial Boot
 // ---------------------------------------------------------------------------
 window.addEventListener('DOMContentLoaded', () => {
+  if (!state.currentTrack) {
+    document.body.classList.add('mini-player-hidden');
+  }
   if (elements.settingsSummaryQuality) {
     elements.settingsSummaryQuality.textContent = `${state.audioQuality} kbps`;
   }

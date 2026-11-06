@@ -68,21 +68,24 @@
 html {
   width: 100%;
   height: 100%;
-  height: 100dvh;
-  min-height: -webkit-fill-available;
+  margin: 0;
+  padding: 0;
   overflow: hidden;
-  background-color: var(--bg-main);
+  background-color: #09090F;
 }
 
 body {
   position: fixed;
-  inset: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   width: 100%;
   height: 100%;
-  height: 100dvh;
-  min-height: -webkit-fill-available;
+  margin: 0;
+  padding: 0;
   overflow: hidden;
-  background-color: var(--bg-main);
+  background-color: #09090F;
   color: var(--text-main);
   font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -91,8 +94,6 @@ body {
   -webkit-user-select: none;
   touch-action: pan-y;
   overscroll-behavior: none;
-  padding-left: var(--safe-left);
-  padding-right: var(--safe-right);
 }
 
 /* ==========================================================================
@@ -186,17 +187,19 @@ body {
 /* App Shell Container */
 .app-container {
   position: absolute;
-  inset: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   width: 100%;
   height: 100%;
-  height: 100dvh;
-  min-height: -webkit-fill-available;
   display: flex;
   flex-direction: column;
   z-index: 1;
   max-width: 1280px;
   margin: 0 auto;
   overflow: hidden;
+  background-color: #09090F;
 }
 
 /* ==========================================================================
@@ -364,7 +367,11 @@ body {
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-y: contain;
-  padding-bottom: calc(var(--nav-height) + var(--mini-player-height) + max(var(--safe-bottom), 12px) + 36px);
+  padding-bottom: calc(var(--nav-height) + var(--mini-player-height) + env(safe-area-inset-bottom, 0px) + 16px);
+}
+
+body.mini-player-hidden .main-content {
+  padding-bottom: calc(var(--nav-height) + env(safe-area-inset-bottom, 0px) + 16px);
 }
 
 .app-view {
@@ -1507,9 +1514,9 @@ body {
    ========================================================================== */
 .mini-player {
   position: fixed;
-  bottom: calc(var(--nav-height) + max(var(--safe-bottom), 12px) + 8px);
-  left: max(12px, var(--safe-left));
-  right: max(12px, var(--safe-right));
+  bottom: calc(var(--nav-height) + env(safe-area-inset-bottom, 0px) + 8px);
+  left: max(12px, env(safe-area-inset-left, 0px));
+  right: max(12px, env(safe-area-inset-right, 0px));
   height: var(--mini-player-height);
   background: var(--bg-glass-elevated);
   backdrop-filter: blur(32px) saturate(190%);
@@ -1683,10 +1690,10 @@ body {
   bottom: 0;
   left: 0;
   right: 0;
-  height: calc(var(--nav-height) + max(var(--safe-bottom), 12px));
-  padding-bottom: max(var(--safe-bottom), 12px);
-  padding-left: max(8px, var(--safe-left));
-  padding-right: max(8px, var(--safe-right));
+  height: calc(var(--nav-height) + env(safe-area-inset-bottom, 0px));
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-left: max(8px, env(safe-area-inset-left, 0px));
+  padding-right: max(8px, env(safe-area-inset-right, 0px));
   background: var(--bg-glass);
   backdrop-filter: blur(30px) saturate(190%);
   -webkit-backdrop-filter: blur(30px) saturate(190%);
@@ -2465,6 +2472,74 @@ body {
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+/* Minimal Instagram Creator Badge & Follow Button */
+.pwa-creator-follow {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border-color);
+  width: 100%;
+}
+
+.pwa-creator-label {
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  letter-spacing: 0.2px;
+}
+
+.pwa-creator-label strong {
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.instagram-follow-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 16px;
+  border-radius: var(--radius-full);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-color);
+  color: var(--text-main);
+  text-decoration: none;
+  font-size: 0.82rem;
+  font-weight: 600;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: var(--glass-specular-soft);
+}
+
+.instagram-follow-btn:hover, .instagram-follow-btn:active {
+  background: rgba(199, 244, 100, 0.12);
+  border-color: var(--border-lime);
+  color: var(--accent-lime);
+  transform: translateY(-1px);
+}
+
+.instagram-icon {
+  width: 15px;
+  height: 15px;
+  color: #E1306C;
+}
+
+.ig-handle {
+  color: var(--text-main);
+  font-weight: 600;
+}
+
+.ig-follow-tag {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--accent-lime);
+  background: rgba(199, 244, 100, 0.15);
+  padding: 2px 7px;
+  border-radius: var(--radius-full);
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
 }
 
 /* ==========================================================================

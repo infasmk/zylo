@@ -353,21 +353,7 @@
               <svg class="chevron-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg>
             </button>
 
-            <!-- Card 5: Install App -->
-            <button class="settings-nav-card" id="settings-card-install" type="button">
-              <div class="settings-card-left">
-                <div class="card-icon-wrap">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect><line x1="12" y1="18" x2="12.01" y2="18"></line></svg>
-                </div>
-                <div class="card-title-group">
-                  <h3>Install App (PWA)</h3>
-                  <span>Home Screen experience</span>
-                </div>
-              </div>
-              <svg class="chevron-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg>
-            </button>
-
-            <!-- Card 6: Force Reload & Update App -->
+            <!-- Card 5: Force Reload & Update App -->
             <button class="settings-nav-card" id="settings-card-reload" type="button">
               <div class="settings-card-left">
                 <div class="card-icon-wrap lime">
@@ -558,40 +544,7 @@
         </div>
 
         <!-- ============================================================== -->
-        <!-- SUB-PAGE 5: INSTALL APP (PWA) -->
-        <!-- ============================================================== -->
-        <div id="subpage-install" class="settings-subpage hidden">
-          <div class="subpage-top-bar">
-            <button class="settings-back-btn" id="back-from-install" type="button">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"></polyline></svg>
-              <span>Settings</span>
-            </button>
-            <h2 class="subpage-title">Install Zylo</h2>
-          </div>
-
-          <div class="subpage-content">
-            <div class="install-guide-card">
-              <div class="install-device-badge">iOS Safari (iPhone / iPad)</div>
-              <ol class="install-steps-list">
-                <li>Tap the <strong>Share</strong> button <span class="share-icon-glyph">⎋</span> at the bottom of Safari.</li>
-                <li>Scroll down and tap <strong>Add to Home Screen</strong>.</li>
-                <li>Tap <strong>Add</strong> in the top right corner.</li>
-              </ol>
-            </div>
-
-            <div class="install-guide-card mt-16">
-              <div class="install-device-badge">Android / Chrome / Desktop</div>
-              <ol class="install-steps-list">
-                <li>Tap the <strong>Menu (⋮)</strong> or install icon in address bar.</li>
-                <li>Select <strong>Install app</strong> or <strong>Add to Home screen</strong>.</li>
-              </ol>
-              <button class="primary-lime-btn full mt-12" id="subpage-trigger-pwa-btn">Install App Now</button>
-            </div>
-          </div>
-        </div>
-
-        <!-- ============================================================== -->
-        <!-- SUB-PAGE 6: ABOUT ZYLO (FULL PAGE EXPERIENCE) -->
+        <!-- SUB-PAGE 5: ABOUT ZYLO (FULL PAGE EXPERIENCE) -->
         <!-- ============================================================== -->
         <div id="subpage-about" class="settings-subpage hidden">
           <div class="subpage-top-bar">
@@ -1042,6 +995,20 @@
       <div class="pwa-actions">
         <button class="primary-lime-btn full" id="pwa-confirm-btn">Got it / Install</button>
         <button class="text-dismiss-btn" id="pwa-dismiss-btn">Maybe Later</button>
+      </div>
+
+      <!-- Minimal Instagram Creator Badge & Follow Button -->
+      <div class="pwa-creator-follow">
+        <span class="pwa-creator-label">Created by <strong>infas.mk</strong></span>
+        <a href="https://www.instagram.com/infaaze/" target="_blank" rel="noopener noreferrer" class="instagram-follow-btn" aria-label="Follow @infaaze on Instagram">
+          <svg class="instagram-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
+            <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
+            <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line>
+          </svg>
+          <span class="ig-handle">@infaaze</span>
+          <span class="ig-follow-tag">Follow</span>
+        </a>
       </div>
     </div>
   </div>
