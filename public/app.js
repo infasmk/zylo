@@ -45,7 +45,17 @@ const state = {
   sleepTimerType: 'off', // 'off' | 'minutes' | 'end_of_track'
   sleepTimerMinutes: 0,
   sleepTimerEndTimestamp: 0,
-  sleepTimerInterval: null
+  sleepTimerInterval: null,
+
+  // Firebase & Sync State
+  user: null,
+  firebaseAuth: null,
+  firestore: null,
+  firebaseConfigured: false,
+  authMode: 'signin', // 'signin' | 'signup'
+  isSyncing: false,
+  firestoreUnsubscribe: null,
+  lastSyncTimestamp: null
 };
 
 // ---------------------------------------------------------------------------
@@ -57,8 +67,11 @@ const elements = {
   mainContent: document.getElementById('main-content'),
   topHeader: document.getElementById('top-header'),
 
-  // Top Header
+  // Top Header Profile
   headerProfileBtn: document.getElementById('header-profile-btn'),
+  headerGreetingTitle: document.getElementById('header-greeting-title'),
+  headerGreetingSub: document.getElementById('header-greeting-sub'),
+  headerAvatarImg: document.getElementById('header-avatar-img'),
   headerImportBtn: document.getElementById('header-import-btn'),
   headerSearchBtn: document.getElementById('header-search-btn'),
   headerFavoritesBtn: document.getElementById('header-favorites-btn'),
@@ -214,10 +227,12 @@ const elements = {
 
   // Settings Drill-Down Navigation
   settingsMainView: document.getElementById('settings-main-view'),
+  settingsSummaryAccount: document.getElementById('settings-summary-account'),
   settingsSummaryQuality: document.getElementById('settings-summary-quality'),
   settingsSummarySleep: document.getElementById('settings-summary-sleep'),
   settingsSummaryStorage: document.getElementById('settings-summary-storage'),
 
+  settingsCardAccount: document.getElementById('settings-card-account'),
   settingsCardQuality: document.getElementById('settings-card-quality'),
   settingsCardSleep: document.getElementById('settings-card-sleep'),
   settingsCardStorage: document.getElementById('settings-card-storage'),
@@ -261,6 +276,38 @@ const elements = {
   subpageImportStatusText: document.getElementById('subpage-import-status-text'),
 
   subpageTriggerPwaBtn: document.getElementById('subpage-trigger-pwa-btn'),
+
+  // Auth Modal
+  authModal: document.getElementById('auth-modal'),
+  authModalTitle: document.getElementById('auth-modal-title'),
+  authModalCloseBtn: document.getElementById('auth-modal-close-btn'),
+  authTabSignin: document.getElementById('auth-tab-signin'),
+  authTabSignup: document.getElementById('auth-tab-signup'),
+  authErrorBanner: document.getElementById('auth-error-banner'),
+  authConfigHint: document.getElementById('auth-config-hint'),
+  authForm: document.getElementById('auth-form'),
+  authFieldUsername: document.getElementById('auth-field-username'),
+  authUsernameInput: document.getElementById('auth-username-input'),
+  authEmailInput: document.getElementById('auth-email-input'),
+  authPasswordInput: document.getElementById('auth-password-input'),
+  authSubmitBtn: document.getElementById('auth-submit-btn'),
+  authSubmitText: document.getElementById('auth-submit-text'),
+  authSpinner: document.getElementById('auth-spinner'),
+  authToggleQuestion: document.getElementById('auth-toggle-question'),
+  authToggleBtn: document.getElementById('auth-toggle-btn'),
+
+  // Account Modal
+  accountModal: document.getElementById('account-modal'),
+  accountModalCloseBtn: document.getElementById('account-modal-close-btn'),
+  accountAvatarInitial: document.getElementById('account-avatar-initial'),
+  accountDisplayName: document.getElementById('account-display-name'),
+  accountEmailText: document.getElementById('account-email-text'),
+  accountSyncStatusText: document.getElementById('account-sync-status-text'),
+  accountLikedCount: document.getElementById('account-liked-count'),
+  accountPlaylistsCount: document.getElementById('account-playlists-count'),
+  accountLastSyncTime: document.getElementById('account-last-sync-time'),
+  accountSyncNowBtn: document.getElementById('account-sync-now-btn'),
+  accountLogoutBtn: document.getElementById('account-logout-btn'),
 
   // Toast
   toast: document.getElementById('toast')
@@ -333,6 +380,7 @@ function saveLibrary() {
   localStorage.setItem('zylo_history', JSON.stringify(state.history));
   localStorage.setItem('zylo_playlists', JSON.stringify(state.playlists));
   updateLibraryUI();
+  scheduleCloudSync();
 }
 
 function isTrackLiked(trackId) {
@@ -1318,7 +1366,15 @@ elements.navItems.forEach(item => {
   item.addEventListener('click', () => navigateTo(item.dataset.view));
 });
 
-elements.headerProfileBtn.addEventListener('click', () => navigateTo('library'));
+if (elements.headerProfileBtn) {
+  elements.headerProfileBtn.addEventListener('click', () => {
+    if (state.user) {
+      showAccountModal();
+    } else {
+      showAuthModal('signin');
+    }
+  });
+}
 elements.headerSearchBtn.addEventListener('click', () => {
   navigateTo('explore');
   elements.searchInput.focus();
@@ -2553,6 +2609,16 @@ function closeSettingsSubpage() {
 }
 
 // Settings Card Click Triggers
+if (elements.settingsCardAccount) {
+  elements.settingsCardAccount.addEventListener('click', () => {
+    if (state.user) {
+      showAccountModal();
+    } else {
+      showAuthModal('signin');
+    }
+  });
+}
+
 if (elements.settingsCardQuality) {
   elements.settingsCardQuality.addEventListener('click', () => {
     elements.qualityRadioCards.forEach(card => {
@@ -2790,6 +2856,435 @@ if (elements.triggerPwaGuideBtn) {
 }
 
 // ---------------------------------------------------------------------------
+// Firebase Authentication & Cloud Sync Engine
+// ---------------------------------------------------------------------------
+let cloudSyncTimer = null;
+
+async function initFirebase() {
+  if (typeof firebase === 'undefined') {
+    console.warn('Firebase SDK not loaded.');
+    updateAuthUI();
+    return;
+  }
+
+  let config = window.zyloFirebaseConfig || null;
+
+  try {
+    const res = await fetch('/api/firebase-config');
+    if (res.ok) {
+      const serverRes = await res.json();
+      if (serverRes && serverRes.configured && serverRes.config && serverRes.config.apiKey) {
+        config = serverRes.config;
+      }
+    }
+  } catch (e) {
+    // Ignore fetch error, keep window.zyloFirebaseConfig
+  }
+
+  const isConfigured = Boolean(
+    config &&
+    config.apiKey &&
+    !config.apiKey.includes('YOUR_FIREBASE_API_KEY') &&
+    !config.apiKey.includes('PASTE_')
+  );
+
+  state.firebaseConfigured = isConfigured;
+
+  if (!isConfigured) {
+    updateAuthUI();
+    return;
+  }
+
+  try {
+    if (!firebase.apps || !firebase.apps.length) {
+      firebase.initializeApp(config);
+    }
+    state.firebaseAuth = firebase.auth();
+    state.firestore = firebase.firestore();
+
+    // Enable offline persistence in firestore if supported
+    try {
+      state.firestore.enablePersistence({ synchronizeTabs: true }).catch(() => {});
+    } catch (_) {}
+
+    state.firebaseAuth.onAuthStateChanged(handleAuthStateChanged);
+  } catch (err) {
+    console.warn('Firebase initialization error:', err);
+    state.firebaseConfigured = false;
+    updateAuthUI();
+  }
+}
+
+function handleAuthStateChanged(user) {
+  state.user = user || null;
+  updateAuthUI();
+
+  if (state.firestoreUnsubscribe) {
+    state.firestoreUnsubscribe();
+    state.firestoreUnsubscribe = null;
+  }
+
+  if (user && state.firestore) {
+    const userDocRef = state.firestore.collection('users').doc(user.uid);
+
+    state.firestoreUnsubscribe = userDocRef.onSnapshot(async (snapshot) => {
+      if (snapshot.exists) {
+        const data = snapshot.data();
+        if (data) {
+          handleIncomingCloudData(data);
+        }
+      } else {
+        // Initial sync: Upload local guest library to user's new cloud profile
+        await syncToCloudNow(true);
+      }
+    }, (error) => {
+      console.warn('Firestore snapshot error:', error);
+    });
+
+    if (elements.authModal && !elements.authModal.classList.contains('hidden')) {
+      closeAuthModal();
+      showToast(`Welcome, ${user.displayName || user.email?.split('@')[0]}!`);
+    }
+  }
+}
+
+function mergeTracks(localTracks, cloudTracks) {
+  const map = new Map();
+  // Include cloud tracks
+  (cloudTracks || []).forEach(t => {
+    if (t && t.id) map.set(String(t.id), t);
+  });
+  // Merge local tracks
+  (localTracks || []).forEach(t => {
+    if (t && t.id && !map.has(String(t.id))) {
+      map.set(String(t.id), t);
+    }
+  });
+  return Array.from(map.values());
+}
+
+function mergePlaylists(localPlaylists, cloudPlaylists) {
+  const map = new Map();
+  (cloudPlaylists || []).forEach(pl => {
+    if (pl && pl.id) map.set(String(pl.id), pl);
+  });
+  (localPlaylists || []).forEach(localPl => {
+    if (!localPl || !localPl.id) return;
+    const plId = String(localPl.id);
+    if (!map.has(plId)) {
+      map.set(plId, localPl);
+    } else {
+      const cloudPl = map.get(plId);
+      const mergedTracks = mergeTracks(localPl.tracks || [], cloudPl.tracks || []);
+      map.set(plId, {
+        ...cloudPl,
+        ...localPl,
+        tracks: mergedTracks,
+        itemCount: mergedTracks.length
+      });
+    }
+  });
+  return Array.from(map.values());
+}
+
+function handleIncomingCloudData(cloudData) {
+  const cloudLiked = Array.isArray(cloudData.likedSongs) ? cloudData.likedSongs : [];
+  const cloudPlaylists = Array.isArray(cloudData.playlists) ? cloudData.playlists : [];
+  const cloudHistory = Array.isArray(cloudData.history) ? cloudData.history : [];
+
+  const mergedLiked = mergeTracks(state.likedSongs, cloudLiked);
+  const mergedPlaylists = mergePlaylists(state.playlists, cloudPlaylists);
+  const mergedHistory = mergeTracks(state.history, cloudHistory).slice(0, 50);
+
+  state.likedSongs = mergedLiked;
+  state.playlists = mergedPlaylists;
+  state.history = mergedHistory;
+
+  localStorage.setItem('zylo_liked', JSON.stringify(state.likedSongs));
+  localStorage.setItem('zylo_history', JSON.stringify(state.history));
+  localStorage.setItem('zylo_playlists', JSON.stringify(state.playlists));
+
+  state.lastSyncTimestamp = new Date();
+  updateLibraryUI();
+  updateLikeButtons();
+  updateAccountModalUI();
+
+  // If local had items that cloud didn't have, sync merged result back to cloud
+  if (mergedLiked.length > cloudLiked.length || mergedPlaylists.length > cloudPlaylists.length) {
+    scheduleCloudSync();
+  }
+}
+
+function scheduleCloudSync() {
+  if (!state.user || !state.firestore || !state.firebaseConfigured) return;
+
+  clearTimeout(cloudSyncTimer);
+  cloudSyncTimer = setTimeout(() => {
+    syncToCloudNow(false);
+  }, 1200);
+}
+
+async function syncToCloudNow(silent = false) {
+  if (!state.user || !state.firestore || !state.firebaseConfigured) {
+    if (!silent) showToast('Sign in to sync with cloud');
+    return;
+  }
+
+  try {
+    state.isSyncing = true;
+    updateAccountModalUI();
+
+    const userDocRef = state.firestore.collection('users').doc(state.user.uid);
+    await userDocRef.set({
+      uid: state.user.uid,
+      email: state.user.email || '',
+      displayName: state.user.displayName || '',
+      likedSongs: state.likedSongs,
+      playlists: state.playlists,
+      history: state.history.slice(0, 50),
+      lastActive: firebase.firestore.FieldValue.serverTimestamp()
+    }, { merge: true });
+
+    state.isSyncing = false;
+    state.lastSyncTimestamp = new Date();
+    updateAccountModalUI();
+    if (!silent) {
+      showToast('Cloud sync complete!');
+    }
+  } catch (err) {
+    console.warn('Sync to cloud error:', err);
+    state.isSyncing = false;
+    updateAccountModalUI();
+    if (!silent) {
+      showToast('Sync error: ' + (err.message || 'Failed'));
+    }
+  }
+}
+
+function updateAuthUI() {
+  const profileAvatar = document.querySelector('.header-profile .profile-avatar');
+  if (state.user) {
+    const name = state.user.displayName || state.user.email?.split('@')[0] || 'User';
+    if (elements.headerGreetingTitle) elements.headerGreetingTitle.textContent = `Hi, ${name}`;
+    if (elements.headerGreetingSub) elements.headerGreetingSub.textContent = 'Cloud Sync Active';
+    if (profileAvatar) profileAvatar.classList.add('is-online');
+    if (elements.settingsSummaryAccount) elements.settingsSummaryAccount.textContent = name;
+  } else {
+    if (elements.headerGreetingTitle) elements.headerGreetingTitle.textContent = 'Hi, Guest';
+    if (elements.headerGreetingSub) elements.headerGreetingSub.textContent = 'Tap to Sign In & Sync';
+    if (profileAvatar) profileAvatar.classList.remove('is-online');
+    if (elements.settingsSummaryAccount) elements.settingsSummaryAccount.textContent = 'Guest Mode';
+  }
+  updateAccountModalUI();
+}
+
+function updateAccountModalUI() {
+  if (!elements.accountModal) return;
+
+  if (state.user) {
+    const name = state.user.displayName || state.user.email?.split('@')[0] || 'Zylo Listener';
+    const initial = name.charAt(0).toUpperCase();
+
+    if (elements.accountAvatarInitial) elements.accountAvatarInitial.textContent = initial;
+    if (elements.accountDisplayName) elements.accountDisplayName.textContent = name;
+    if (elements.accountEmailText) elements.accountEmailText.textContent = state.user.email || 'Cloud Account';
+
+    if (elements.accountSyncStatusText) {
+      elements.accountSyncStatusText.textContent = state.isSyncing ? 'Syncing...' : 'Cloud Sync Active';
+    }
+
+    if (elements.accountLikedCount) elements.accountLikedCount.textContent = state.likedSongs.length;
+    if (elements.accountPlaylistsCount) elements.accountPlaylistsCount.textContent = state.playlists.length;
+
+    if (elements.accountLastSyncTime) {
+      if (state.lastSyncTimestamp) {
+        elements.accountLastSyncTime.textContent = state.lastSyncTimestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      } else {
+        elements.accountLastSyncTime.textContent = 'Just now';
+      }
+    }
+  }
+}
+
+function showAuthModal(mode = 'signin') {
+  setAuthMode(mode);
+  if (elements.authConfigHint) {
+    elements.authConfigHint.classList.toggle('hidden', state.firebaseConfigured);
+  }
+  if (elements.authErrorBanner) {
+    elements.authErrorBanner.classList.add('hidden');
+    elements.authErrorBanner.textContent = '';
+  }
+  if (elements.authModal) {
+    elements.authModal.classList.remove('hidden');
+  }
+}
+
+function closeAuthModal() {
+  if (elements.authModal) {
+    elements.authModal.classList.add('hidden');
+  }
+}
+
+function showAccountModal() {
+  updateAccountModalUI();
+  if (elements.accountModal) {
+    elements.accountModal.classList.remove('hidden');
+  }
+}
+
+function closeAccountModal() {
+  if (elements.accountModal) {
+    elements.accountModal.classList.add('hidden');
+  }
+}
+
+function setAuthMode(mode) {
+  state.authMode = mode;
+  const isSignUp = mode === 'signup';
+
+  if (elements.authTabSignin) elements.authTabSignin.classList.toggle('active', !isSignUp);
+  if (elements.authTabSignup) elements.authTabSignup.classList.toggle('active', isSignUp);
+
+  if (elements.authModalTitle) {
+    elements.authModalTitle.textContent = isSignUp ? 'Create Account' : 'Sign In to Zylo';
+  }
+  if (elements.authSubmitText) {
+    elements.authSubmitText.textContent = isSignUp ? 'Create Account & Sync' : 'Sign In & Sync';
+  }
+  if (elements.authFieldUsername) {
+    elements.authFieldUsername.classList.toggle('hidden', !isSignUp);
+  }
+  if (elements.authToggleQuestion) {
+    elements.authToggleQuestion.textContent = isSignUp ? 'Already have an account?' : "Don't have an account?";
+  }
+  if (elements.authToggleBtn) {
+    elements.authToggleBtn.textContent = isSignUp ? 'Sign In' : 'Create Account';
+  }
+  if (elements.authErrorBanner) {
+    elements.authErrorBanner.classList.add('hidden');
+    elements.authErrorBanner.textContent = '';
+  }
+}
+
+async function handleAuthFormSubmit() {
+  const email = (elements.authEmailInput?.value || '').trim();
+  const password = (elements.authPasswordInput?.value || '').trim();
+  const username = (elements.authUsernameInput?.value || '').trim();
+
+  if (!email || !password) {
+    showAuthError('Please enter both email and password.');
+    return;
+  }
+  if (password.length < 6) {
+    showAuthError('Password must be at least 6 characters long.');
+    return;
+  }
+
+  if (!state.firebaseConfigured || !state.firebaseAuth) {
+    if (elements.authConfigHint) elements.authConfigHint.classList.remove('hidden');
+    showAuthError('Firebase credentials required. Please configure public/firebase-config.js.');
+    return;
+  }
+
+  setAuthLoading(true);
+
+  try {
+    if (state.authMode === 'signup') {
+      const cred = await state.firebaseAuth.createUserWithEmailAndPassword(email, password);
+      if (username && cred.user) {
+        await cred.user.updateProfile({ displayName: username });
+      }
+      showToast('Account created successfully!');
+    } else {
+      await state.firebaseAuth.signInWithEmailAndPassword(email, password);
+    }
+  } catch (err) {
+    console.warn('Auth error:', err);
+    let msg = err.message || 'Authentication failed. Please try again.';
+    if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
+      msg = 'Invalid email or password.';
+    } else if (err.code === 'auth/email-already-in-use') {
+      msg = 'An account with this email already exists. Please Sign In.';
+    } else if (err.code === 'auth/invalid-email') {
+      msg = 'Please enter a valid email address.';
+    } else if (err.code === 'auth/weak-password') {
+      msg = 'Password should be at least 6 characters.';
+    } else if (err.code === 'auth/network-request-failed') {
+      msg = 'Network connection error. Check your internet.';
+    }
+    showAuthError(msg);
+  } finally {
+    setAuthLoading(false);
+  }
+}
+
+function showAuthError(message) {
+  if (elements.authErrorBanner) {
+    elements.authErrorBanner.textContent = message;
+    elements.authErrorBanner.classList.remove('hidden');
+  }
+}
+
+function setAuthLoading(loading) {
+  if (elements.authSubmitBtn) elements.authSubmitBtn.disabled = loading;
+  if (elements.authSpinner) elements.authSpinner.classList.toggle('hidden', !loading);
+  if (elements.authSubmitText) elements.authSubmitText.style.opacity = loading ? '0.4' : '1';
+}
+
+async function handleLogout() {
+  if (state.firebaseAuth) {
+    try {
+      await state.firebaseAuth.signOut();
+      closeAccountModal();
+      showToast('Logged out. You are now in Guest Mode.');
+    } catch (err) {
+      showToast('Error logging out: ' + err.message);
+    }
+  }
+}
+
+// Auth & Account Event Listeners
+if (elements.authModalCloseBtn) {
+  elements.authModalCloseBtn.addEventListener('click', closeAuthModal);
+}
+
+if (elements.accountModalCloseBtn) {
+  elements.accountModalCloseBtn.addEventListener('click', closeAccountModal);
+}
+
+if (elements.authTabSignin) {
+  elements.authTabSignin.addEventListener('click', () => setAuthMode('signin'));
+}
+
+if (elements.authTabSignup) {
+  elements.authTabSignup.addEventListener('click', () => setAuthMode('signup'));
+}
+
+if (elements.authToggleBtn) {
+  elements.authToggleBtn.addEventListener('click', () => {
+    setAuthMode(state.authMode === 'signin' ? 'signup' : 'signin');
+  });
+}
+
+if (elements.authForm) {
+  elements.authForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    handleAuthFormSubmit();
+  });
+}
+
+if (elements.accountSyncNowBtn) {
+  elements.accountSyncNowBtn.addEventListener('click', () => {
+    syncToCloudNow(false);
+  });
+}
+
+if (elements.accountLogoutBtn) {
+  elements.accountLogoutBtn.addEventListener('click', handleLogout);
+}
+
+// ---------------------------------------------------------------------------
 // Keyboard Shortcuts
 // ---------------------------------------------------------------------------
 window.addEventListener('keydown', (e) => {
@@ -2815,6 +3310,8 @@ window.addEventListener('keydown', (e) => {
     elements.sleepTimerModal.classList.add('hidden');
     elements.pwaInstallModal.classList.add('hidden');
     if (elements.editPlaylistModal) elements.editPlaylistModal.classList.add('hidden');
+    if (elements.authModal) elements.authModal.classList.add('hidden');
+    if (elements.accountModal) elements.accountModal.classList.add('hidden');
     closeSettingsSubpage();
   }
 });
@@ -2845,6 +3342,7 @@ window.addEventListener('DOMContentLoaded', () => {
   updateLibraryUI();
   loadHomeData();
   checkFirstTimePWA();
+  initFirebase();
 
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/sw.js').catch(err => {

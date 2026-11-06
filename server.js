@@ -174,6 +174,26 @@ async function fetchSaavn(call, params = {}) {
 // API Endpoints
 // ---------------------------------------------------------------------------
 
+// 0. Firebase Cloud Configuration Helper (Reads environment variables if available)
+app.get('/api/firebase-config', (req, res) => {
+  const apiKey = process.env.FIREBASE_API_KEY;
+  const projectId = process.env.FIREBASE_PROJECT_ID;
+  if (apiKey && projectId) {
+    return res.json({
+      configured: true,
+      config: {
+        apiKey,
+        authDomain: process.env.FIREBASE_AUTH_DOMAIN || `${projectId}.firebaseapp.com`,
+        projectId,
+        storageBucket: process.env.FIREBASE_STORAGE_BUCKET || `${projectId}.appspot.com`,
+        messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID || '',
+        appId: process.env.FIREBASE_APP_ID || ''
+      }
+    });
+  }
+  res.json({ configured: false });
+});
+
 // 1. Homepage: Curated & Trending, Daily Playlists, Top Charts, New Releases
 app.get('/api/home', async (req, res) => {
   try {

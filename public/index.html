@@ -27,6 +27,12 @@
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   
   <link rel="stylesheet" href="/styles.css">
+
+  <!-- Firebase Cloud SDK (Compat) -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <script src="/firebase-config.js"></script>
 </head>
 <body class="dark-theme">
   <!-- Light Mild Aurora Background Effect -->
@@ -44,13 +50,13 @@
     
     <!-- Top Header (Cleanly shown on Home Screen) -->
     <header class="top-header" id="top-header">
-      <div class="header-profile" id="header-profile-btn" title="View Library">
+      <div class="header-profile" id="header-profile-btn" title="My Account & Cloud Sync">
         <div class="profile-avatar">
-          <img src="/assets/zylo_logo.png" alt="Zylo" class="header-avatar-logo">
+          <img src="/assets/zylo_logo.png" alt="Zylo" class="header-avatar-logo" id="header-avatar-img">
         </div>
         <div class="profile-greeting">
-          <span class="greeting-title">Hi, infas</span>
-          <span class="greeting-subtitle">Created by infas.mk</span>
+          <span class="greeting-title" id="header-greeting-title">Hi, Guest</span>
+          <span class="greeting-subtitle" id="header-greeting-sub">Tap to Sign In & Sync</span>
         </div>
       </div>
 
@@ -297,6 +303,20 @@
 
           <div class="settings-nav-cards">
             
+            <!-- Card 0: Account & Cloud Sync -->
+            <button class="settings-nav-card" id="settings-card-account" type="button">
+              <div class="settings-card-left">
+                <div class="card-icon-wrap lime">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                </div>
+                <div class="card-title-group">
+                  <h3>Account & Cloud Sync</h3>
+                  <span id="settings-summary-account">Guest Mode • Tap to Sign In</span>
+                </div>
+              </div>
+              <svg class="chevron-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg>
+            </button>
+
             <!-- Card 1: Audio Quality -->
             <button class="settings-nav-card" id="settings-card-quality" type="button">
               <div class="settings-card-left">
@@ -1038,6 +1058,160 @@
         <div class="edit-modal-actions mt-16">
           <button class="text-dismiss-btn danger" id="delete-playlist-btn">Delete Playlist</button>
           <button class="primary-lime-btn" id="save-playlist-edits-btn">Save Changes</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================================================================== -->
+  <!-- AUTH MODAL (SIGN IN / SIGN UP) -->
+  <!-- ================================================================== -->
+  <div id="auth-modal" class="modal-overlay hidden">
+    <div class="modal-card auth-card">
+      <div class="modal-header">
+        <div class="auth-header-title">
+          <div class="auth-logo-badge">
+            <img src="/assets/zylo_logo.png" alt="Zylo" class="auth-logo-mini">
+          </div>
+          <div>
+            <h3 id="auth-modal-title">Sign In to Zylo</h3>
+            <span class="auth-subtitle">Sync your music across all devices</span>
+          </div>
+        </div>
+        <button class="modal-close-btn" id="auth-modal-close-btn">✕</button>
+      </div>
+
+      <!-- Auth Tabs -->
+      <div class="auth-tabs">
+        <button class="auth-tab active" id="auth-tab-signin" type="button">Sign In</button>
+        <button class="auth-tab" id="auth-tab-signup" type="button">Create Account</button>
+      </div>
+
+      <div class="modal-body">
+        <!-- Error Alert Banner -->
+        <div id="auth-error-banner" class="auth-error-banner hidden"></div>
+
+        <!-- Setup Hint (Shown if Firebase keys not configured yet) -->
+        <div id="auth-config-hint" class="auth-config-hint hidden">
+          <div class="config-hint-header">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+            <span>Firebase Cloud Setup Required</span>
+          </div>
+          <p>To enable multi-device sync, add your free Firebase project credentials into <code>public/firebase-config.js</code> or environment variables.</p>
+        </div>
+
+        <form id="auth-form" onsubmit="event.preventDefault();">
+          <!-- Username (Only on Sign Up) -->
+          <div class="auth-field hidden" id="auth-field-username">
+            <label class="auth-label" for="auth-username-input">Username / Name</label>
+            <div class="input-icon-wrap">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+              <input type="text" id="auth-username-input" class="modal-input with-icon" placeholder="e.g. infas" maxlength="30" autocomplete="nickname">
+            </div>
+          </div>
+
+          <!-- Email -->
+          <div class="auth-field">
+            <label class="auth-label" for="auth-email-input">Email Address</label>
+            <div class="input-icon-wrap">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+              <input type="email" id="auth-email-input" class="modal-input with-icon" placeholder="name@example.com" required autocomplete="email">
+            </div>
+          </div>
+
+          <!-- Password -->
+          <div class="auth-field">
+            <label class="auth-label" for="auth-password-input">Password</label>
+            <div class="input-icon-wrap">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+              <input type="password" id="auth-password-input" class="modal-input with-icon" placeholder="At least 6 characters" required minlength="6" autocomplete="current-password">
+            </div>
+          </div>
+
+          <!-- Submit Button -->
+          <button type="submit" class="primary-lime-btn full auth-submit-btn" id="auth-submit-btn">
+            <span id="auth-submit-text">Sign In & Sync</span>
+            <div class="auth-spinner hidden" id="auth-spinner"></div>
+          </button>
+        </form>
+
+        <!-- Toggle Switch Text -->
+        <div class="auth-toggle-box">
+          <span id="auth-toggle-question">Don't have an account?</span>
+          <button class="auth-toggle-link" id="auth-toggle-btn" type="button">Create Account</button>
+        </div>
+
+        <div class="auth-guest-note">
+          <span>Guest mode is always available and stores locally on this device.</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================================================================== -->
+  <!-- ACCOUNT DASHBOARD MODAL -->
+  <!-- ================================================================== -->
+  <div id="account-modal" class="modal-overlay hidden">
+    <div class="modal-card account-card">
+      <div class="modal-header">
+        <h3>My Account</h3>
+        <button class="modal-close-btn" id="account-modal-close-btn">✕</button>
+      </div>
+
+      <div class="modal-body">
+        <!-- User Info Hero -->
+        <div class="account-profile-hero">
+          <div class="account-avatar-circle">
+            <span id="account-avatar-initial">Z</span>
+          </div>
+          <div class="account-details">
+            <h3 id="account-display-name">User Name</h3>
+            <span id="account-email-text" class="account-email">user@example.com</span>
+            <div class="cloud-status-badge">
+              <span class="status-dot"></span>
+              <span id="account-sync-status-text">Cloud Sync Active</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Sync Stats Cards -->
+        <div class="account-stats-grid">
+          <div class="account-stat-card">
+            <div class="stat-icon heart">
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"></path></svg>
+            </div>
+            <div class="stat-info">
+              <span class="stat-val" id="account-liked-count">0</span>
+              <span class="stat-label">Liked Songs</span>
+            </div>
+          </div>
+
+          <div class="account-stat-card">
+            <div class="stat-icon playlist">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg>
+            </div>
+            <div class="stat-info">
+              <span class="stat-val" id="account-playlists-count">0</span>
+              <span class="stat-label">Playlists</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="account-sync-info">
+          <span>Last synchronized: <strong id="account-last-sync-time">Just now</strong></span>
+        </div>
+
+        <!-- Actions -->
+        <div class="account-actions">
+          <button class="primary-lime-btn full" id="account-sync-now-btn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6"></path><path d="M1 20v-6h6"></path><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+            <span>Sync with Cloud Now</span>
+          </button>
+          
+          <button class="text-dismiss-btn danger full" id="account-logout-btn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+            <span>Log Out</span>
+          </button>
         </div>
       </div>
     </div>
